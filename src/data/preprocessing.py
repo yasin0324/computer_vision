@@ -13,6 +13,7 @@ from collections import Counter
 import shutil
 from pathlib import Path
 import random
+from ..config import config
 
 class TomatoSpotDiseaseDataset:
     """
@@ -391,11 +392,21 @@ def main():
     np.random.seed(42)
     torch.manual_seed(42)
     
-    # 1. 初始化数据集处理器
-    dataset_processor = TomatoSpotDiseaseDataset()
+    # 1. 初始化数据集处理器，使用配置文件中的数据路径
+    dataset_processor = TomatoSpotDiseaseDataset(data_root=config.DATA_ROOT)
     
     # 2. 收集数据
     image_paths, labels = dataset_processor.collect_data()
+    
+    # 检查是否收集到数据
+    if len(image_paths) == 0:
+        print("❌ No images found! Please check:")
+        print(f"   1. Data directory exists: {config.DATA_ROOT}")
+        print("   2. Target class directories exist:")
+        for class_dir in dataset_processor.target_classes.keys():
+            class_path = os.path.join(config.DATA_ROOT, class_dir)
+            print(f"      - {class_path}")
+        raise ValueError("No images found in the specified directories")
     
     # 3. 分析数据分布
     balance_ratio = dataset_processor.analyze_data_distribution()
@@ -404,10 +415,17 @@ def main():
     image_stats, corrupted_images = dataset_processor.check_image_quality()
     
     # 5. 创建数据划分
-    train_df, val_df, test_df = dataset_processor.create_data_splits()
+    train_df, val_df, test_df = dataset_processor.create_data_splits(
+        test_size=config.TEST_SIZE,
+        val_size=config.VAL_SIZE,
+        random_state=config.RANDOM_STATE
+    )
     
     # 6. 保存数据划分
-    output_dir = dataset_processor.save_data_splits(train_df, val_df, test_df)
+    output_dir = dataset_processor.save_data_splits(
+        train_df, val_df, test_df, 
+        output_dir=config.PROCESSED_DATA_DIR
+    )
     
     # 7. 创建数据加载器
     import json
@@ -418,11 +436,13 @@ def main():
     
     train_loader, val_loader, test_loader, idx_to_label = create_data_loaders(
         train_df, val_df, test_df, label_to_idx, 
-        batch_size=32, input_size=224
+        batch_size=config.BATCH_SIZE, 
+        input_size=config.INPUT_SIZE,
+        num_workers=config.NUM_WORKERS
     )
     
     # 8. 可视化样本
-    visualize_samples(train_loader, idx_to_label)
+    visualize_samples(train_loader, idx_to_label, save_path=f"{output_dir}/sample_images.png")
     
     print("\n=== Data preprocessing completed ===")
     print(f"Processed data saved to: {output_dir}/")

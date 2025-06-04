@@ -406,7 +406,7 @@ def generate_recommendations(crop_disease_mapping, fine_grained_candidates, writ
 
 if __name__ == "__main__":
     # 设置数据路径
-    data_path = "data/PlantVillage"
+    data_path = "data/raw/PlantVillage"
     
     # 配置输出选项
     output_file = None

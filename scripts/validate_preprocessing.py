@@ -1,6 +1,12 @@
 """
 验证数据预处理结果
 """
+import sys
+import os
+from pathlib import Path
+
+project_root = Path(__file__).parent.parent
+sys.path.append(str(project_root))
 
 import os
 import json
@@ -8,13 +14,18 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from src.data.preprocessing import TomatoSpotDataset, get_data_transforms
+from src.config import config
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
 
-def validate_data_splits(processed_data_dir="processed_data"):
+def validate_data_splits(processed_data_dir=None):
     """验证数据划分结果"""
+    if processed_data_dir is None:
+        processed_data_dir = config.PROCESSED_DATA_DIR
+        
     print("=== Validating Data Preprocessing Results ===\n")
+    print(f"Checking data in directory: {processed_data_dir}")
     
     # 1. 检查文件是否存在
     required_files = [
@@ -22,14 +33,20 @@ def validate_data_splits(processed_data_dir="processed_data"):
         'class_mapping.json', 'preprocessing_summary.json'
     ]
     
-    print("1. Checking required files...")
+    print("\n1. Checking required files...")
+    missing_files = []
     for file_name in required_files:
         file_path = os.path.join(processed_data_dir, file_name)
         if os.path.exists(file_path):
             print(f"✅ {file_name}")
         else:
             print(f"❌ {file_name} - File does not exist")
-            return False
+            missing_files.append(file_name)
+    
+    if missing_files:
+        print(f"\n❌ Missing files: {missing_files}")
+        print("Please run data preprocessing first: python scripts/preprocess_data.py")
+        return False
     
     # 2. 加载和验证数据
     print("\n2. Validating data integrity...")

@@ -3,14 +3,15 @@
 """
 
 import os
+import torch
 from pathlib import Path
 
 class Config:
     """实验配置类"""
     
     # 数据相关配置
-    DATA_ROOT = "data/PlantVillage"
-    PROCESSED_DATA_DIR = "processed_data"
+    DATA_ROOT = "data/raw/PlantVillage"
+    PROCESSED_DATA_DIR = "data/processed"
     
     # 目标类别（番茄叶斑病细粒度识别）
     TARGET_CLASSES = {
@@ -65,8 +66,8 @@ class Config:
     MODEL_SAVE_DIR = "models"
     LOGS_DIR = "logs"
     
-    # 设备配置
-    DEVICE = "cuda" if os.system("nvidia-smi") == 0 else "cpu"
+    # 设备配置 - 使用PyTorch的CUDA检测
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
     @classmethod
     def create_directories(cls):
