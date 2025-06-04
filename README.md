@@ -10,10 +10,10 @@
 
 本项目专注于番茄叶斑病的细粒度识别，使用 PlantVillage 数据集中的四个关键类别：
 
-- **细菌性斑点病** (Bacterial Spot)
-- **褐斑病** (Septoria Leaf Spot)
-- **靶斑病** (Target Spot)
-- **健康对照** (Healthy)
+-   **细菌性斑点病** (Bacterial Spot)
+-   **褐斑病** (Septoria Leaf Spot)
+-   **靶斑病** (Target Spot)
+-   **健康对照** (Healthy)
 
 通过集成注意力机制（SE-Net、CBAM 等）到 ResNet50 骨干网络，实现高精度的植物病害识别。
 
@@ -99,42 +99,42 @@ python scripts/train_baseline.py
 
 ### 数据处理
 
-- ✅ 自动化数据收集和组织
-- ✅ 质量分析和损坏检测
-- ✅ 分层训练/验证/测试划分 (60%/20%/20%)
-- ✅ 高级数据增强管道
-- ✅ 类别平衡和加权采样
+-   ✅ 自动化数据收集和组织
+-   ✅ 质量分析和损坏检测
+-   ✅ 分层训练/验证/测试划分 (60%/20%/20%)
+-   ✅ 高级数据增强管道
+-   ✅ 类别平衡和加权采样
 
 ### 模型架构
 
-- ✅ ResNet50 骨干网络与 ImageNet 预训练
-- 🚧 SE-Net (Squeeze-and-Excitation) 注意力机制
-- 🚧 CBAM (Convolutional Block Attention Module)
-- 🚧 自定义注意力模块支持
-- ✅ 迁移学习优化
+-   ✅ ResNet50 骨干网络与 ImageNet 预训练
+-   🚧 SE-Net (Squeeze-and-Excitation) 注意力机制
+-   🚧 CBAM (Convolutional Block Attention Module)
+-   🚧 自定义注意力模块支持
+-   ✅ 迁移学习优化
 
 ### 训练管道
 
-- ✅ 可配置训练参数
-- ✅ 早停和学习率调度
-- ✅ TensorBoard 日志和可视化（可选）
-- ✅ 模型检查点和恢复
-- ✅ 混合精度训练支持
-- ✅ 实时训练监控
+-   ✅ 可配置训练参数
+-   ✅ 早停和学习率调度
+-   ✅ TensorBoard 日志和可视化（可选）
+-   ✅ 模型检查点和恢复
+-   ✅ 混合精度训练支持
+-   ✅ 实时训练监控
 
 ### 评估分析
 
-- 🚧 综合性能指标
-- 🚧 混淆矩阵分析
-- 🚧 注意力可视化
-- 🚧 Grad-CAM 热力图
-- 🚧 测试时增强
+-   🚧 综合性能指标
+-   🚧 混淆矩阵分析
+-   🚧 注意力可视化
+-   🚧 Grad-CAM 热力图
+-   🚧 测试时增强
 
 ## 🔧 配置
 
 项目使用分层配置系统：
 
-- `src/config/config.py` - 主要配置参数
+-   `src/config/config.py` - 主要配置参数
 
 关键配置选项：
 
@@ -166,10 +166,10 @@ EARLY_STOPPING = {
 
 ### 数据集统计
 
-- **总样本数**: 6,893 张图像
-- **训练集**: 4,135 张 (60%)
-- **验证集**: 1,379 张 (20%)
-- **测试集**: 1,379 张 (20%)
+-   **总样本数**: 6,893 张图像
+-   **训练集**: 4,135 张 (60%)
+-   **验证集**: 1,379 张 (20%)
+-   **测试集**: 1,379 张 (20%)
 
 ### 类别分布
 
@@ -263,30 +263,6 @@ outputs/
 └── results/
     └── {experiment_name}_results.json # 结果摘要
 ```
-
-## 🤝 贡献
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 打开 Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 🙏 致谢
-
-- PlantVillage 数据集提供番茄病害图像
-- PyTorch 团队提供优秀的深度学习框架
-- 计算机视觉注意力机制相关研究论文
-
-## 📞 联系方式
-
-- **作者**: Your Name
-- **邮箱**: your.email@example.com
-- **项目链接**: https://github.com/your-username/tomato-spot-recognition
 
 ---
 
