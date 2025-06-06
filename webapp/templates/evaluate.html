@@ -1,0 +1,206 @@
+{% extends "base.html" %} {% block title %}模型评估 - 植物叶片病害识别系统{%
+endblock %} {% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="fas fa-chart-line me-2"></i>模型评估</h2>
+        <p class="text-muted mb-4">评估模型性能，生成详细的评估报告</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">评估配置</h5>
+            </div>
+            <div class="card-body">
+                <form id="evaluateForm">
+                    <div class="mb-3">
+                        <label for="modelPath" class="form-label"
+                            >选择模型</label
+                        >
+                        <select
+                            id="modelPath"
+                            name="model_path"
+                            class="form-select"
+                            required
+                        >
+                            <option value="">请选择模型文件</option>
+                            {% for model in models %}
+                            <option
+                                value="{{ model.path }}"
+                                data-type="{{ model.type }}"
+                            >
+                                {{ model.name }} ({{ model.type }}) - {{
+                                model.size }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modelTypeEval" class="form-label"
+                            >模型类型</label
+                        >
+                        <select
+                            id="modelTypeEval"
+                            name="model_type"
+                            class="form-select"
+                        >
+                            <option value="baseline">ResNet50 基线模型</option>
+                            <option value="senet">SE-Net 注意力模型</option>
+                            <option value="cbam">CBAM 双重注意力模型</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="saveAttention"
+                                name="save_attention"
+                            />
+                            <label class="form-check-label" for="saveAttention">
+                                保存注意力权重分析
+                            </label>
+                            <div class="form-text">仅适用于注意力模型</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-chart-line me-2"></i>开始评估
+                    </button>
+                </form>
+
+                <div id="evaluationLoading" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">评估中...</span>
+                    </div>
+                    <p class="mt-2">正在评估模型，请稍候...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">评估结果</h5>
+            </div>
+            <div class="card-body">
+                <div id="noEvaluation" class="text-center text-muted">
+                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                    <p>请选择模型开始评估</p>
+                </div>
+
+                <div id="evaluationResult" style="display: none">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary" id="accuracy">-</h4>
+                                <p class="text-muted mb-0">准确率</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-success" id="f1Score">-</h4>
+                                <p class="text-muted mb-0">F1分数</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="mb-3">
+                        <small class="text-muted">输出目录</small>
+                        <p class="mb-0" id="outputDir">-</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <a
+                            href="#"
+                            id="reportLink"
+                            class="btn btn-outline-primary"
+                            target="_blank"
+                            style="display: none"
+                        >
+                            <i class="fas fa-file-alt me-2"></i>查看详细报告
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // 模型选择变化时自动设置模型类型
+        $("#modelPath").on("change", function () {
+            const selectedOption = $(this).find("option:selected");
+            const modelType = selectedOption.data("type");
+            if (modelType) {
+                $("#modelTypeEval").val(modelType);
+            }
+        });
+
+        $("#evaluateForm").on("submit", function (e) {
+            e.preventDefault();
+
+            const formData = {
+                model_path: $("#modelPath").val(),
+                model_type: $("#modelTypeEval").val(),
+                save_attention: $("#saveAttention").is(":checked"),
+            };
+
+            if (!formData.model_path) {
+                showError("请选择模型文件");
+                return;
+            }
+
+            // 显示加载动画
+            $("#evaluationLoading").show();
+            $("#noEvaluation").hide();
+            $("#evaluationResult").hide();
+
+            $.ajax({
+                url: "/api/evaluate",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(formData),
+                success: function (response) {
+                    displayEvaluationResult(response);
+                    showSuccess("评估完成！");
+                },
+                error: function (xhr) {
+                    const error = xhr.responseJSON
+                        ? xhr.responseJSON.error
+                        : "评估失败";
+                    showError(error);
+                    $("#noEvaluation").show();
+                },
+                complete: function () {
+                    $("#evaluationLoading").hide();
+                },
+            });
+        });
+
+        function displayEvaluationResult(result) {
+            $("#accuracy").text(
+                (result.results.accuracy * 100).toFixed(1) + "%"
+            );
+            $("#f1Score").text(
+                (result.results.macro_f1 * 100).toFixed(1) + "%"
+            );
+            $("#outputDir").text(result.results.output_dir);
+
+            if (result.results.report_url) {
+                $("#reportLink").attr("href", result.results.report_url).show();
+            }
+
+            $("#evaluationResult").show();
+        }
+    });
+</script>
+{% endblock %}

@@ -320,6 +320,52 @@ def load_baseline_and_add_attention(
     return attention_model
 
 
+def create_senet_model(num_classes: int = 4, reduction: int = 16, 
+                      dropout_rate: float = 0.7, pretrained: bool = True):
+    """
+    创建SE-Net模型
+    
+    Args:
+        num_classes: 分类数量
+        reduction: SE模块的降维比例
+        dropout_rate: Dropout率
+        pretrained: 是否使用预训练权重
+    
+    Returns:
+        SE-Net模型
+    """
+    return create_resnet_with_attention(
+        num_classes=num_classes,
+        attention_type='se',
+        reduction=reduction,
+        dropout_rate=dropout_rate,
+        pretrained=pretrained
+    )
+
+
+def create_cbam_model(num_classes: int = 4, reduction: int = 16,
+                     dropout_rate: float = 0.7, pretrained: bool = True):
+    """
+    创建CBAM模型
+    
+    Args:
+        num_classes: 分类数量
+        reduction: CBAM模块的降维比例
+        dropout_rate: Dropout率
+        pretrained: 是否使用预训练权重
+    
+    Returns:
+        CBAM模型
+    """
+    return create_resnet_with_attention(
+        num_classes=num_classes,
+        attention_type='cbam',
+        reduction=reduction,
+        dropout_rate=dropout_rate,
+        pretrained=pretrained
+    )
+
+
 def get_model_info(model):
     """
     获取模型信息

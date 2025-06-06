@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型评估报告 - baseline</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .summary-card {
+            background-color: #e8f5e8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid #4CAF50;
+        }
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .metrics-table th, .metrics-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .metrics-table th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .metrics-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .chart-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .error-analysis {
+            background-color: #fff3cd;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #ffc107;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>模型评估报告 - baseline</h1>
+        <p><strong>生成时间:</strong> 2025-06-06 21:20:37</p>
+        
+        <h2>比较摘要</h2>
+        
+        <div class="summary-card">
+            <h3>评估摘要</h3>
+            <p><strong>模型路径:</strong> C:\Users\锅\Downloads\visual\outputs\models\resnet50_baseline_improved\best_checkpoint_epoch_34.pth</p>
+            <p><strong>测试准确率:</strong> 0.9935 (99.35%)</p>
+            <p><strong>总样本数:</strong> 1379</p>
+            <p><strong>正确预测:</strong> 1370</p>
+            <p><strong>错误预测:</strong> 9</p>
+        </div>
+        
+        
+        <h2>整体性能比较</h2>
+        {{PERFORMANCE_TABLE}}
+        
+        <h2>性能排名</h2>
+        {{RANKINGS}}
+        
+        <div class="footer">
+            <p>此报告由植物叶片病害识别系统自动生成</p>
+        </div>
+    </div>
+</body>
+</html>
+        

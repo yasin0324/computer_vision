@@ -1,0 +1,516 @@
+{% extends "base.html" %} {% block title %}病害识别 - 植物叶片病害识别系统{%
+endblock %} {% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="fas fa-search me-2"></i>植物叶片病害识别</h2>
+        <p class="text-muted mb-4">
+            上传植物叶片图像，系统将自动识别病害类型并给出置信度评分
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 上传区域 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-upload me-2"></i>图像上传</h5>
+            </div>
+            <div class="card-body">
+                <form id="predictForm" enctype="multipart/form-data">
+                    <!-- 文件上传区域 -->
+                    <div class="mb-3">
+                        <label for="imageFile" class="form-label"
+                            >选择图像文件</label
+                        >
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-content text-center">
+                                <i
+                                    class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"
+                                ></i>
+                                <p class="mb-2">点击选择文件或拖拽文件到此处</p>
+                                <p class="text-muted small">
+                                    支持 JPG, PNG, GIF, BMP 格式，最大 16MB
+                                </p>
+                                <input
+                                    type="file"
+                                    id="imageFile"
+                                    name="file"
+                                    accept="image/*"
+                                    class="d-none"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary"
+                                    onclick="document.getElementById('imageFile').click()"
+                                >
+                                    <i class="fas fa-folder-open me-2"></i
+                                    >选择文件
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 图像预览 -->
+                    <div id="imagePreview" class="mb-3" style="display: none">
+                        <label class="form-label">图像预览</label>
+                        <div class="text-center">
+                            <img
+                                id="previewImg"
+                                src=""
+                                alt="预览图像"
+                                class="img-fluid rounded"
+                                style="max-height: 300px"
+                            />
+                            <div class="mt-2">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="clearImage()"
+                                >
+                                    <i class="fas fa-times me-1"></i>清除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 模型选择 -->
+                    <div class="mb-3">
+                        <label for="modelType" class="form-label"
+                            >选择识别模型</label
+                        >
+                        <select
+                            id="modelType"
+                            name="model_type"
+                            class="form-select"
+                        >
+                            <option value="baseline">ResNet50 基线模型</option>
+                            <option value="senet">SE-Net 注意力模型</option>
+                            <option value="cbam">CBAM 双重注意力模型</option>
+                        </select>
+                        <div class="form-text">
+                            不同模型可能有不同的识别精度和速度
+                        </div>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <div class="d-grid">
+                        <button
+                            type="submit"
+                            class="btn btn-primary btn-lg"
+                            id="predictBtn"
+                        >
+                            <i class="fas fa-search me-2"></i>开始识别
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 加载动画 -->
+                <div id="loadingSpinner" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">识别中...</span>
+                    </div>
+                    <p class="mt-2">正在识别中，请稍候...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结果显示区域 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>识别结果
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="noResult" class="text-center text-muted">
+                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                    <p>请上传图像开始识别</p>
+                </div>
+
+                <div id="predictionResult" style="display: none">
+                    <!-- 主要结果 -->
+                    <div class="prediction-result mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-8">
+                                <h4 class="mb-1" id="predictedClass">-</h4>
+                                <p class="text-muted mb-0">预测类别</p>
+                            </div>
+                            <div class="col-4 text-end">
+                                <h3 class="mb-1 text-primary" id="confidence">
+                                    -
+                                </h3>
+                                <p class="text-muted mb-0">置信度</p>
+                            </div>
+                        </div>
+                        <div class="confidence-bar mt-3">
+                            <div
+                                class="confidence-fill"
+                                id="confidenceFill"
+                                style="width: 0%"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <!-- 所有类别概率 -->
+                    <div class="mb-4">
+                        <h6 class="mb-3">各类别概率分布</h6>
+                        <div id="probabilityBars"></div>
+                    </div>
+
+                    <!-- 详细信息 -->
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">使用模型</small>
+                            <p class="mb-0" id="usedModel">-</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">识别时间</small>
+                            <p class="mb-0" id="predictionTime">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 病害信息卡片 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <h4 class="mb-3">病害类型说明</h4>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card disease-info" data-disease="bacterial_spot">
+            <div class="card-body text-center">
+                <i class="fas fa-virus fa-2x text-danger mb-2"></i>
+                <h6 class="card-title">细菌性斑点病</h6>
+                <p class="card-text small">
+                    叶片出现水浸状小斑点，后变褐色，严重时叶片枯萎
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card disease-info" data-disease="septoria_leaf_spot">
+            <div class="card-body text-center">
+                <i class="fas fa-circle-notch fa-2x text-warning mb-2"></i>
+                <h6 class="card-title">褐斑病</h6>
+                <p class="card-text small">
+                    叶片出现圆形褐色斑点，中央灰白色，边缘深褐色
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card disease-info" data-disease="target_spot">
+            <div class="card-body text-center">
+                <i class="fas fa-bullseye fa-2x text-info mb-2"></i>
+                <h6 class="card-title">靶斑病</h6>
+                <p class="card-text small">
+                    叶片出现同心圆环状病斑，呈靶心状特征
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-3">
+        <div class="card disease-info" data-disease="healthy">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h6 class="card-title">健康叶片</h6>
+                <p class="card-text small">叶片健康，无病害症状，颜色正常</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_css %}
+<style>
+    .upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 40px 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .upload-area:hover {
+        border-color: var(--primary-color);
+        background-color: #f8f9fa;
+    }
+
+    .upload-area.dragover {
+        border-color: var(--accent-color);
+        background-color: var(--light-green);
+    }
+
+    .probability-item {
+        margin-bottom: 10px;
+    }
+
+    .probability-label {
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+
+    .probability-bar {
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .probability-fill {
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            var(--accent-color),
+            var(--light-green)
+        );
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        color: var(--primary-color);
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .disease-info {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .disease-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .disease-info.highlighted {
+        border: 2px solid var(--accent-color);
+        background-color: var(--light-green);
+    }
+</style>
+{% endblock %} {% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // 文件上传处理
+        const uploadArea = document.getElementById("uploadArea");
+        const fileInput = document.getElementById("imageFile");
+        const imagePreview = document.getElementById("imagePreview");
+        const previewImg = document.getElementById("previewImg");
+
+        // 拖拽上传
+        uploadArea.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            uploadArea.classList.add("dragover");
+        });
+
+        uploadArea.addEventListener("dragleave", function (e) {
+            e.preventDefault();
+            uploadArea.classList.remove("dragover");
+        });
+
+        uploadArea.addEventListener("drop", function (e) {
+            e.preventDefault();
+            uploadArea.classList.remove("dragover");
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // 文件选择处理
+        fileInput.addEventListener("change", function (e) {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        // 处理文件选择
+        function handleFileSelect(file) {
+            if (!file.type.startsWith("image/")) {
+                showError("请选择图像文件");
+                return;
+            }
+
+            if (file.size > 16 * 1024 * 1024) {
+                showError("文件大小不能超过16MB");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImg.src = e.target.result;
+                imagePreview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 清除图像
+        window.clearImage = function () {
+            fileInput.value = "";
+            imagePreview.style.display = "none";
+            document.getElementById("predictionResult").style.display = "none";
+            document.getElementById("noResult").style.display = "block";
+
+            // 清除病害卡片高亮
+            document.querySelectorAll(".disease-info").forEach((card) => {
+                card.classList.remove("highlighted");
+            });
+        };
+
+        // 表单提交
+        $("#predictForm").on("submit", function (e) {
+            e.preventDefault();
+
+            if (!fileInput.files.length) {
+                showError("请选择图像文件");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append(
+                "model_type",
+                document.getElementById("modelType").value
+            );
+
+            // 显示加载动画
+            document.getElementById("predictBtn").disabled = true;
+            document.getElementById("loadingSpinner").style.display = "block";
+            document.getElementById("noResult").style.display = "none";
+            document.getElementById("predictionResult").style.display = "none";
+
+            // 发送请求
+            $.ajax({
+                url: "/api/predict",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    displayPredictionResult(response);
+                },
+                error: function (xhr) {
+                    const error = xhr.responseJSON
+                        ? xhr.responseJSON.error
+                        : "预测失败";
+                    showError(error);
+                },
+                complete: function () {
+                    document.getElementById("predictBtn").disabled = false;
+                    document.getElementById("loadingSpinner").style.display =
+                        "none";
+                },
+            });
+        });
+
+        // 显示预测结果
+        function displayPredictionResult(result) {
+            // 主要结果
+            document.getElementById("predictedClass").textContent =
+                result.predicted_class;
+            document.getElementById("confidence").textContent =
+                (result.confidence * 100).toFixed(1) + "%";
+            document.getElementById("confidenceFill").style.width =
+                result.confidence * 100 + "%";
+
+            // 概率分布
+            const probabilityBars = document.getElementById("probabilityBars");
+            probabilityBars.innerHTML = "";
+
+            Object.entries(result.all_probabilities).forEach(
+                ([className, probability]) => {
+                    const item = document.createElement("div");
+                    item.className = "probability-item";
+
+                    const isMax = className === result.predicted_class;
+                    const barColor = isMax ? "var(--accent-color)" : "#dee2e6";
+
+                    item.innerHTML = `
+                <div class="probability-label d-flex justify-content-between">
+                    <span>${className}</span>
+                    <span>${(probability * 100).toFixed(1)}%</span>
+                </div>
+                <div class="probability-bar">
+                    <div class="probability-fill" style="width: ${
+                        probability * 100
+                    }%; background-color: ${barColor};">
+                    </div>
+                </div>
+            `;
+
+                    probabilityBars.appendChild(item);
+                }
+            );
+
+            // 详细信息
+            document.getElementById("usedModel").textContent = getModelName(
+                result.model_type
+            );
+            document.getElementById("predictionTime").textContent =
+                formatDateTime(result.timestamp);
+
+            // 显示结果
+            document.getElementById("predictionResult").style.display = "block";
+
+            // 高亮对应的病害卡片
+            highlightDiseaseCard(result.predicted_class);
+
+            showSuccess("识别完成！");
+        }
+
+        // 获取模型名称
+        function getModelName(modelType) {
+            const modelNames = {
+                baseline: "ResNet50 基线模型",
+                senet: "SE-Net 注意力模型",
+                cbam: "CBAM 双重注意力模型",
+            };
+            return modelNames[modelType] || modelType;
+        }
+
+        // 高亮病害卡片
+        function highlightDiseaseCard(predictedClass) {
+            // 清除所有高亮
+            document.querySelectorAll(".disease-info").forEach((card) => {
+                card.classList.remove("highlighted");
+            });
+
+            // 映射类别名称到卡片
+            const classMapping = {
+                bacterial_spot: "bacterial_spot",
+                septoria_leaf_spot: "septoria_leaf_spot",
+                target_spot: "target_spot",
+                healthy: "healthy",
+            };
+
+            // 查找匹配的卡片
+            Object.entries(classMapping).forEach(([cardDisease, className]) => {
+                if (
+                    predictedClass.toLowerCase().includes(cardDisease) ||
+                    predictedClass.toLowerCase().includes(className)
+                ) {
+                    const card = document.querySelector(
+                        `[data-disease="${cardDisease}"]`
+                    );
+                    if (card) {
+                        card.classList.add("highlighted");
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,261 @@
+{% extends "base.html" %} {% block title %}模型训练 - 植物叶片病害识别系统{%
+endblock %} {% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="fas fa-cogs me-2"></i>模型训练</h2>
+        <p class="text-muted mb-4">配置训练参数，训练深度学习模型</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">训练配置</h5>
+            </div>
+            <div class="card-body">
+                <form id="trainForm">
+                    <div class="mb-3">
+                        <label for="modelType" class="form-label"
+                            >模型类型</label
+                        >
+                        <select
+                            id="modelType"
+                            name="model_type"
+                            class="form-select"
+                        >
+                            <option value="baseline">ResNet50 基线模型</option>
+                            <option value="senet">SE-Net 注意力模型</option>
+                            <option value="cbam">CBAM 双重注意力模型</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="epochs" class="form-label">训练轮数</label>
+                        <input
+                            type="number"
+                            id="epochs"
+                            name="epochs"
+                            class="form-control"
+                            value="50"
+                            min="1"
+                            max="200"
+                        />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="learningRate" class="form-label"
+                            >学习率</label
+                        >
+                        <input
+                            type="number"
+                            id="learningRate"
+                            name="learning_rate"
+                            class="form-control"
+                            value="0.0005"
+                            step="0.0001"
+                            min="0.0001"
+                            max="0.01"
+                        />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="batchSize" class="form-label"
+                            >批次大小</label
+                        >
+                        <select
+                            id="batchSize"
+                            name="batch_size"
+                            class="form-select"
+                        >
+                            <option value="16">16</option>
+                            <option value="32" selected>32</option>
+                            <option value="64">64</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>开始训练
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">训练状态</h5>
+            </div>
+            <div class="card-body">
+                <div id="noTraining" class="text-center text-muted">
+                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                    <p>暂无正在进行的训练任务</p>
+                </div>
+
+                <div id="trainingStatus" style="display: none">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>训练进度</span>
+                            <span id="progressText">0%</span>
+                        </div>
+                        <div class="progress">
+                            <div
+                                class="progress-bar"
+                                id="progressBar"
+                                style="width: 0%"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">当前轮次</small>
+                            <p class="mb-0" id="currentEpoch">-</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">总轮次</small>
+                            <p class="mb-0" id="totalEpochs">-</p>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">训练损失</small>
+                            <p class="mb-0" id="trainLoss">-</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">验证损失</small>
+                            <p class="mb-0" id="valLoss">-</p>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <small class="text-muted">训练准确率</small>
+                            <p class="mb-0" id="trainAcc">-</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">验证准确率</small>
+                            <p class="mb-0" id="valAcc">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    $(document).ready(function () {
+        let currentTrainingId = null;
+        let statusInterval = null;
+
+        $("#trainForm").on("submit", function (e) {
+            e.preventDefault();
+
+            const formData = {
+                model_type: $("#modelType").val(),
+                epochs: parseInt($("#epochs").val()),
+                learning_rate: parseFloat($("#learningRate").val()),
+                batch_size: parseInt($("#batchSize").val()),
+            };
+
+            $.ajax({
+                url: "/api/train",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(formData),
+                success: function (response) {
+                    currentTrainingId = response.training_id;
+                    showTrainingStatus();
+                    startStatusPolling();
+                    showSuccess("训练已开始！");
+                },
+                error: function (xhr) {
+                    const error = xhr.responseJSON
+                        ? xhr.responseJSON.error
+                        : "训练启动失败";
+                    showError(error);
+                },
+            });
+        });
+
+        function showTrainingStatus() {
+            $("#noTraining").hide();
+            $("#trainingStatus").show();
+        }
+
+        function hideTrainingStatus() {
+            $("#noTraining").show();
+            $("#trainingStatus").hide();
+        }
+
+        function startStatusPolling() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
+
+            statusInterval = setInterval(function () {
+                if (currentTrainingId) {
+                    checkTrainingStatus();
+                }
+            }, 2000);
+        }
+
+        function checkTrainingStatus() {
+            $.ajax({
+                url: `/api/training_status/${currentTrainingId}`,
+                type: "GET",
+                success: function (status) {
+                    updateTrainingStatus(status);
+
+                    if (
+                        status.status === "completed" ||
+                        status.status === "failed" ||
+                        status.status === "stopped"
+                    ) {
+                        clearInterval(statusInterval);
+                        currentTrainingId = null;
+
+                        if (status.status === "completed") {
+                            showSuccess("训练完成！");
+                        } else if (status.status === "failed") {
+                            showError(
+                                "训练失败：" + (status.error || status.message)
+                            );
+                        }
+                    }
+                },
+                error: function () {
+                    clearInterval(statusInterval);
+                    currentTrainingId = null;
+                },
+            });
+        }
+
+        function updateTrainingStatus(status) {
+            $("#progressText").text(Math.round(status.progress || 0) + "%");
+            $("#progressBar").css("width", (status.progress || 0) + "%");
+            $("#currentEpoch").text(status.current_epoch || 0);
+            $("#totalEpochs").text(status.total_epochs || 0);
+            $("#trainLoss").text(
+                status.train_loss ? status.train_loss.toFixed(4) : "-"
+            );
+            $("#valLoss").text(
+                status.val_loss ? status.val_loss.toFixed(4) : "-"
+            );
+            $("#trainAcc").text(
+                status.train_acc
+                    ? (status.train_acc * 100).toFixed(1) + "%"
+                    : "-"
+            );
+            $("#valAcc").text(
+                status.val_acc ? (status.val_acc * 100).toFixed(1) + "%" : "-"
+            );
+        }
+    });
+</script>
+{% endblock %}

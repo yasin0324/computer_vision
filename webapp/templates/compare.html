@@ -1,0 +1,283 @@
+{% extends "base.html" %} {% block title %}模型比较 - 植物叶片病害识别系统{%
+endblock %} {% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="fas fa-balance-scale me-2"></i>模型比较</h2>
+        <p class="text-muted mb-4">对比不同模型的性能表现，选择最优模型</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">选择比较模型</h5>
+            </div>
+            <div class="card-body">
+                <form id="compareForm">
+                    <div id="modelSelections">
+                        <!-- 模型选择项将通过JavaScript动态添加 -->
+                    </div>
+
+                    <div class="mb-3">
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            onclick="addModelSelection()"
+                        >
+                            <i class="fas fa-plus me-2"></i>添加模型
+                        </button>
+                        <button type="submit" class="btn btn-primary ms-2">
+                            <i class="fas fa-balance-scale me-2"></i>开始比较
+                        </button>
+                    </div>
+                </form>
+
+                <div id="comparisonLoading" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">比较中...</span>
+                    </div>
+                    <p class="mt-2">正在比较模型，请稍候...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">比较结果</h5>
+            </div>
+            <div class="card-body">
+                <div id="noComparison" class="text-center text-muted">
+                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                    <p>请选择至少两个模型进行比较</p>
+                </div>
+
+                <div id="comparisonResult" style="display: none">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="comparisonTable">
+                            <thead>
+                                <tr>
+                                    <th>模型名称</th>
+                                    <th>类型</th>
+                                    <th>准确率</th>
+                                    <th>F1分数</th>
+                                    <th>精确率</th>
+                                    <th>召回率</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    $(document).ready(function () {
+        let modelCount = 0;
+        let availableModels = [];
+
+        // 加载可用模型
+        loadAvailableModels();
+
+        function loadAvailableModels() {
+            $.ajax({
+                url: "/api/models",
+                type: "GET",
+                success: function (models) {
+                    availableModels = models;
+                    console.log("加载到的模型:", models);
+
+                    // 模型加载完成后，初始添加两个模型选择
+                    addModelSelection();
+                    addModelSelection();
+                },
+                error: function () {
+                    showError("无法加载模型列表");
+                    console.error("模型加载失败");
+                },
+            });
+        }
+
+        window.addModelSelection = function () {
+            modelCount++;
+            console.log("添加模型选择，当前模型数量:", availableModels.length);
+            const selectionHtml = `
+            <div class="row mb-3 model-selection" data-index="${modelCount}">
+                <div class="col-md-4">
+                    <label class="form-label">模型 ${modelCount}</label>
+                    <select class="form-select model-path" name="model_path_${modelCount}" required>
+                        <option value="">请选择模型</option>
+                        ${availableModels
+                            .map(
+                                (model) =>
+                                    `<option value="${model.path}" data-type="${model.type}" data-name="${model.name}">
+                                ${model.name} (${model.type}) - ${model.size}
+                            </option>`
+                            )
+                            .join("")}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">模型类型</label>
+                    <select class="form-select model-type" name="model_type_${modelCount}">
+                        <option value="baseline">ResNet50 基线模型</option>
+                        <option value="senet">SE-Net 注意力模型</option>
+                        <option value="cbam">CBAM 双重注意力模型</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">显示名称</label>
+                    <input type="text" class="form-control model-name" name="model_name_${modelCount}" placeholder="模型显示名称">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="button" class="btn btn-outline-danger" onclick="removeModelSelection(${modelCount})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+            $("#modelSelections").append(selectionHtml);
+
+            // 绑定模型选择变化事件
+            $(`.model-selection[data-index="${modelCount}"] .model-path`).on(
+                "change",
+                function () {
+                    const selectedOption = $(this).find("option:selected");
+                    const modelType = selectedOption.data("type");
+                    const modelName = selectedOption.data("name");
+                    const row = $(this).closest(".model-selection");
+
+                    if (modelType) {
+                        row.find(".model-type").val(modelType);
+                    }
+                    if (modelName) {
+                        row.find(".model-name").val(modelName);
+                    }
+                }
+            );
+        };
+
+        window.removeModelSelection = function (index) {
+            $(`.model-selection[data-index="${index}"]`).remove();
+        };
+
+        $("#compareForm").on("submit", function (e) {
+            e.preventDefault();
+
+            const models = [];
+            $(".model-selection").each(function () {
+                const path = $(this).find(".model-path").val();
+                const type = $(this).find(".model-type").val();
+                const name = $(this).find(".model-name").val();
+
+                if (path && type && name) {
+                    models.push({
+                        path: path,
+                        type: type,
+                        name: name,
+                    });
+                }
+            });
+
+            if (models.length < 2) {
+                showError("请至少选择两个模型进行比较");
+                return;
+            }
+
+            // 显示详细的加载信息
+            $("#comparisonLoading").show();
+            $("#noComparison").hide();
+            $("#comparisonResult").hide();
+
+            // 更新加载文本
+            $("#comparisonLoading").html(`
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-3">
+                        <h5>正在运行真实模型评估...</h5>
+                        <p class="text-muted">
+                            正在评估 ${models.length} 个模型，每个模型需要1-3分钟<br>
+                            请耐心等待，不要关闭页面
+                        </p>
+                        <div class="progress mt-3" style="height: 20px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" id="evaluationProgress">
+                                0%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+
+            $.ajax({
+                url: "/api/compare",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ models: models }),
+                timeout: 600000, // 10分钟超时
+                success: function (response) {
+                    displayComparisonResult(response);
+                    showSuccess("模型比较完成！使用了真实的评估结果。");
+                },
+                error: function (xhr) {
+                    const error = xhr.responseJSON
+                        ? xhr.responseJSON.error
+                        : "比较失败";
+                    showError(`评估失败: ${error}`);
+                    $("#noComparison").show();
+                },
+                complete: function () {
+                    $("#comparisonLoading").hide();
+                },
+            });
+        });
+
+        function displayComparisonResult(result) {
+            const tbody = $("#comparisonTable tbody");
+            tbody.empty();
+
+            console.log("比较结果:", result); // 调试信息
+
+            if (result.comparison_report && result.comparison_report.models) {
+                const models = result.comparison_report.models;
+
+                models.forEach((model) => {
+                    const row = `
+                    <tr>
+                        <td><strong>${model.model_name}</strong></td>
+                        <td><span class="badge bg-secondary">${
+                            model.model_type
+                        }</span></td>
+                        <td>${(model.accuracy * 100).toFixed(1)}%</td>
+                        <td>${(model.f1_score * 100).toFixed(1)}%</td>
+                        <td>${(model.precision * 100).toFixed(1)}%</td>
+                        <td>${(model.recall * 100).toFixed(1)}%</td>
+                    </tr>
+                `;
+                    tbody.append(row);
+                });
+
+                $("#comparisonResult").show();
+                $("#noComparison").hide();
+            } else {
+                console.error("无效的比较结果数据结构:", result);
+                showError("比较结果数据格式错误");
+                $("#noComparison").show();
+            }
+        }
+    });
+</script>
+{% endblock %}
