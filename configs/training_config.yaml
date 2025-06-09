@@ -1,0 +1,136 @@
+# 植物叶片病害识别系统 - 统一训练配置
+# 配置文件版本: v1.0
+
+# 数据配置
+data:
+    input_size: 224
+    batch_size: 32
+    num_workers: 4
+    pin_memory: true
+
+    # 数据增强
+    augmentation:
+        rotation_degrees: 15
+        brightness: 0.2
+        contrast: 0.2
+        saturation: 0.2
+        horizontal_flip: 0.5
+        vertical_flip: 0.2
+
+# 模型配置
+models:
+    baseline:
+        architecture: "resnet50"
+        pretrained: true
+        num_classes: 10
+        dropout_rate: 0.5
+
+    se_net:
+        architecture: "resnet50"
+        pretrained: true
+        num_classes: 10
+        reduction: 16
+        dropout_rate: 0.7
+
+    cbam:
+        architecture: "resnet50"
+        pretrained: true
+        num_classes: 10
+        reduction: 16
+        dropout_rate: 0.7
+
+# 训练配置
+training:
+    epochs: 100
+    early_stopping:
+        patience: 15
+        min_delta: 0.001
+
+    # 优化器配置
+    optimizer:
+        type: "adamw"
+        lr: 0.001
+        weight_decay: 0.01
+        betas: [0.9, 0.999]
+
+    # 学习率调度
+    scheduler:
+        type: "cosine_annealing"
+        T_max: 100
+        eta_min: 0.0001
+
+    # 损失函数
+    loss:
+        type: "cross_entropy"
+        label_smoothing: 0.1
+
+# 评估配置
+evaluation:
+    metrics:
+        - "accuracy"
+        - "precision"
+        - "recall"
+        - "f1_score"
+        - "confusion_matrix"
+
+    # 测试时数据增强 (TTA)
+    tta:
+        enabled: false
+        num_augmentations: 5
+
+# 可视化配置
+visualization:
+    attention:
+        enabled: true
+        sample_count: 10
+        output_format: ["png", "pdf"]
+
+    grad_cam:
+        enabled: true
+        target_layers: ["layer4"]
+
+    training_curves:
+        enabled: true
+        update_frequency: 10
+
+# 系统配置
+system:
+    device: "auto" # auto, cpu, cuda
+    mixed_precision: true
+    compile_model: false # PyTorch 2.0 编译
+
+    # 随机种子
+    seed: 42
+    deterministic: true
+
+    # 日志配置
+    logging:
+        level: "INFO"
+        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # 保存配置
+    checkpoint:
+        save_best: true
+        save_last: true
+        save_frequency: 10
+        monitor: "val_accuracy"
+        mode: "max"
+
+# 输出路径
+paths:
+    data: "data/processed"
+    models: "outputs/models"
+    logs: "outputs/logs"
+    figures: "outputs/figures"
+    checkpoints: "outputs/checkpoints"
+
+# 实验跟踪
+experiment:
+    name: "tomato_spot_classification"
+    tags: ["attention", "plant_disease", "computer_vision"]
+
+    # Weights & Biases配置
+    wandb:
+        enabled: false
+        project: "plant-disease-detection"
+        entity: null
