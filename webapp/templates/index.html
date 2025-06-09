@@ -1,389 +1,380 @@
 {% extends "base.html" %} {% block title %}首页 - 植物叶片病害识别系统{%
 endblock %} {% block content %}
+
 <!-- 欢迎横幅 -->
-<div class="row mb-5">
-    <div class="col-12">
-        <div
-            class="card bg-gradient text-white"
-            style="
-                background: linear-gradient(
-                    135deg,
-                    var(--primary-color),
-                    var(--secondary-color)
-                );
-            "
+<div class="welcome-banner">
+    <h1><i class="fas fa-leaf me-3"></i>植物叶片病害识别系统</h1>
+    <p class="lead">基于深度学习的植物病害智能识别平台</p>
+    <p class="mb-4">使用先进的注意力机制模型，准确识别番茄叶片的四种常见病害</p>
+    <div class="mt-4">
+        <a
+            href="{{ url_for('predict_page') }}"
+            class="btn btn-light btn-lg me-3"
         >
-            <div class="card-body text-center py-5">
-                <h1 class="display-4 mb-3">
-                    <i class="fas fa-leaf me-3"></i>植物叶片病害识别系统
-                </h1>
-                <p class="lead mb-4">基于深度学习的植物病害智能识别平台</p>
-                <p class="mb-4">
-                    使用先进的注意力机制模型，准确识别番茄叶片的四种常见病害
-                </p>
-                <a
-                    href="{{ url_for('predict_page') }}"
-                    class="btn btn-light btn-lg me-3"
-                >
-                    <i class="fas fa-search me-2"></i>开始识别
-                </a>
-                <a
-                    href="{{ url_for('dashboard') }}"
-                    class="btn btn-outline-light btn-lg"
-                >
-                    <i class="fas fa-tachometer-alt me-2"></i>查看仪表板
-                </a>
-            </div>
-        </div>
+            <i class="fas fa-search me-2"></i>开始识别
+        </a>
+        <a
+            href="{{ url_for('dashboard') }}"
+            class="btn btn-outline-light btn-lg"
+        >
+            <i class="fas fa-tachometer-alt me-2"></i>查看仪表板
+        </a>
     </div>
 </div>
 
 <!-- 功能特性 -->
-<div class="row mb-5">
-    <div class="col-12">
-        <h2 class="text-center mb-5">系统功能</h2>
-    </div>
-
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 text-center">
-            <div class="card-body">
-                <div class="feature-icon">
-                    <i class="fas fa-search"></i>
+<div class="section">
+    <h2 class="text-center">系统功能</h2>
+    <div class="row">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h5 class="card-title">病害识别</h5>
+                    <p class="card-text">
+                        上传植物叶片图像，快速识别病害类型，支持多种模型选择
+                    </p>
+                    <a
+                        href="{{ url_for('predict_page') }}"
+                        class="btn btn-primary"
+                        >立即使用</a
+                    >
                 </div>
-                <h5 class="card-title">病害识别</h5>
-                <p class="card-text">
-                    上传植物叶片图像，快速识别病害类型，支持多种模型选择
-                </p>
-                <a href="{{ url_for('predict_page') }}" class="btn btn-primary"
-                    >立即使用</a
-                >
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 text-center">
-            <div class="card-body">
-                <div class="feature-icon">
-                    <i class="fas fa-cogs"></i>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h5 class="card-title">模型训练</h5>
+                    <p class="card-text">
+                        自定义训练参数，训练基线模型和注意力机制模型
+                    </p>
+                    <a
+                        href="{{ url_for('train_page') }}"
+                        class="btn btn-primary"
+                        >开始训练</a
+                    >
                 </div>
-                <h5 class="card-title">模型训练</h5>
-                <p class="card-text">
-                    自定义训练参数，训练基线模型和注意力机制模型
-                </p>
-                <a href="{{ url_for('train_page') }}" class="btn btn-primary"
-                    >开始训练</a
-                >
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 text-center">
-            <div class="card-body">
-                <div class="feature-icon">
-                    <i class="fas fa-chart-line"></i>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h5 class="card-title">模型评估</h5>
+                    <p class="card-text">
+                        全面评估模型性能，生成详细的评估报告和可视化图表
+                    </p>
+                    <a
+                        href="{{ url_for('evaluate_page') }}"
+                        class="btn btn-primary"
+                        >评估模型</a
+                    >
                 </div>
-                <h5 class="card-title">模型评估</h5>
-                <p class="card-text">
-                    全面评估模型性能，生成详细的评估报告和可视化图表
-                </p>
-                <a href="{{ url_for('evaluate_page') }}" class="btn btn-primary"
-                    >评估模型</a
-                >
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100 text-center">
-            <div class="card-body">
-                <div class="feature-icon">
-                    <i class="fas fa-balance-scale"></i>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="feature-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <h5 class="card-title">模型比较</h5>
+                    <p class="card-text">
+                        对比不同模型的性能表现，选择最优模型
+                    </p>
+                    <a
+                        href="{{ url_for('compare_page') }}"
+                        class="btn btn-primary"
+                        >比较模型</a
+                    >
                 </div>
-                <h5 class="card-title">模型比较</h5>
-                <p class="card-text">对比不同模型的性能表现，选择最优模型</p>
-                <a href="{{ url_for('compare_page') }}" class="btn btn-primary"
-                    >比较模型</a
-                >
             </div>
         </div>
     </div>
 </div>
 
 <!-- 支持的病害类型 -->
-<div class="row mb-5">
-    <div class="col-12">
-        <h2 class="text-center mb-5">支持识别的病害类型</h2>
-    </div>
-
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i
-                        class="fas fa-virus"
-                        style="font-size: 3rem; color: var(--accent-color)"
-                    ></i>
+<div class="section">
+    <h2 class="text-center">支持识别的病害类型</h2>
+    <div class="row">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i
+                            class="fas fa-virus"
+                            style="font-size: 3rem; color: var(--accent-color)"
+                        ></i>
+                    </div>
+                    <h5 class="card-title">细菌性斑点病</h5>
+                    <p class="card-text">
+                        Bacterial Spot - 由细菌感染引起的常见叶片病害
+                    </p>
                 </div>
-                <h5 class="card-title">细菌性斑点病</h5>
-                <p class="card-text">
-                    Bacterial Spot - 由细菌感染引起的常见叶片病害
-                </p>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i
-                        class="fas fa-circle-notch"
-                        style="font-size: 3rem; color: var(--accent-color)"
-                    ></i>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i
+                            class="fas fa-circle-notch"
+                            style="font-size: 3rem; color: var(--accent-color)"
+                        ></i>
+                    </div>
+                    <h5 class="card-title">褐斑病</h5>
+                    <p class="card-text">
+                        Septoria Leaf Spot - 真菌感染导致的叶片褐色斑点
+                    </p>
                 </div>
-                <h5 class="card-title">褐斑病</h5>
-                <p class="card-text">
-                    Septoria Leaf Spot - 真菌感染导致的叶片褐色斑点
-                </p>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i
-                        class="fas fa-bullseye"
-                        style="font-size: 3rem; color: var(--accent-color)"
-                    ></i>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i
+                            class="fas fa-bullseye"
+                            style="font-size: 3rem; color: var(--accent-color)"
+                        ></i>
+                    </div>
+                    <h5 class="card-title">靶斑病</h5>
+                    <p class="card-text">
+                        Target Spot - 具有同心圆环状病斑的真菌病害
+                    </p>
                 </div>
-                <h5 class="card-title">靶斑病</h5>
-                <p class="card-text">
-                    Target Spot - 具有同心圆环状病斑的真菌病害
-                </p>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i
-                        class="fas fa-check-circle"
-                        style="font-size: 3rem; color: var(--light-green)"
-                    ></i>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i
+                            class="fas fa-check-circle"
+                            style="font-size: 3rem; color: var(--light-green)"
+                        ></i>
+                    </div>
+                    <h5 class="card-title">健康叶片</h5>
+                    <p class="card-text">Healthy - 无病害的健康植物叶片</p>
                 </div>
-                <h5 class="card-title">健康叶片</h5>
-                <p class="card-text">Healthy - 无病害的健康植物叶片</p>
             </div>
         </div>
     </div>
 </div>
 
 <!-- 技术特点 -->
-<div class="row mb-5">
-    <div class="col-12">
-        <h2 class="text-center mb-5">技术特点</h2>
-    </div>
-
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i
-                        class="fas fa-brain me-2"
-                        style="color: var(--accent-color)"
-                    ></i>
-                    深度学习模型
-                </h5>
-                <ul class="list-unstyled">
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i>ResNet50
-                        基线模型
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i>SE-Net
-                        通道注意力机制
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i>CBAM
-                        双重注意力机制
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >迁移学习优化
-                    </li>
-                </ul>
+<div class="section">
+    <h2 class="text-center">技术特点</h2>
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i
+                            class="fas fa-brain me-2"
+                            style="color: var(--accent-color)"
+                        ></i>
+                        深度学习模型
+                    </h5>
+                    <ul class="list-unstyled">
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >ResNet50 基线模型
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i>SE-Net
+                            通道注意力机制
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i>CBAM
+                            双重注意力机制
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >迁移学习优化
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i
-                        class="fas fa-chart-bar me-2"
-                        style="color: var(--accent-color)"
-                    ></i>
-                    全面评估体系
-                </h5>
-                <ul class="list-unstyled">
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i>15+
-                        种评估指标
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >混淆矩阵分析
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i>ROC/PR
-                        曲线
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >注意力权重可视化
-                    </li>
-                </ul>
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i
+                            class="fas fa-chart-bar me-2"
+                            style="color: var(--accent-color)"
+                        ></i>
+                        全面评估体系
+                    </h5>
+                    <ul class="list-unstyled">
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i>15+
+                            种评估指标
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >混淆矩阵分析
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i>ROC/PR
+                            曲线
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >注意力权重可视化
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i
-                        class="fas fa-desktop me-2"
-                        style="color: var(--accent-color)"
-                    ></i>
-                    用户友好界面
-                </h5>
-                <ul class="list-unstyled">
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >直观的Web界面
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >实时训练监控
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >交互式图表展示
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >多格式报告导出
-                    </li>
-                </ul>
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i
+                            class="fas fa-desktop me-2"
+                            style="color: var(--accent-color)"
+                        ></i>
+                        用户友好界面
+                    </h5>
+                    <ul class="list-unstyled">
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >直观的Web界面
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >实时训练监控
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >交互式图表展示
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >多格式报告导出
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i
-                        class="fas fa-rocket me-2"
-                        style="color: var(--accent-color)"
-                    ></i>
-                    高性能计算
-                </h5>
-                <ul class="list-unstyled">
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i>GPU
-                        加速支持
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >批量处理能力
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >内存优化设计
-                    </li>
-                    <li>
-                        <i class="fas fa-check text-success me-2"></i
-                        >异步任务处理
-                    </li>
-                </ul>
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i
+                            class="fas fa-rocket me-2"
+                            style="color: var(--accent-color)"
+                        ></i>
+                        高性能计算
+                    </h5>
+                    <ul class="list-unstyled">
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i>GPU
+                            加速支持
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >批量处理能力
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >内存优化设计
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i
+                            >异步任务处理
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- 快速开始 -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body text-center">
-                <h3 class="card-title mb-4">快速开始</h3>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
+<div class="section">
+    <div class="card">
+        <div class="card-body text-center">
+            <h3 class="card-title mb-4">快速开始</h3>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div
+                        class="d-flex align-items-center justify-content-center mb-2"
+                    >
                         <div
-                            class="d-flex align-items-center justify-content-center mb-2"
+                            class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                            style="
+                                width: 40px;
+                                height: 40px;
+                                margin-right: 10px;
+                            "
                         >
-                            <div
-                                class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                                style="
-                                    width: 40px;
-                                    height: 40px;
-                                    margin-right: 10px;
-                                "
-                            >
-                                1
-                            </div>
-                            <h5 class="mb-0">上传图像</h5>
+                            1
                         </div>
-                        <p class="text-muted">选择植物叶片图像文件</p>
+                        <h5 class="mb-0">上传图像</h5>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div
-                            class="d-flex align-items-center justify-content-center mb-2"
-                        >
-                            <div
-                                class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                                style="
-                                    width: 40px;
-                                    height: 40px;
-                                    margin-right: 10px;
-                                "
-                            >
-                                2
-                            </div>
-                            <h5 class="mb-0">选择模型</h5>
-                        </div>
-                        <p class="text-muted">选择合适的识别模型</p>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <div
-                            class="d-flex align-items-center justify-content-center mb-2"
-                        >
-                            <div
-                                class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                                style="
-                                    width: 40px;
-                                    height: 40px;
-                                    margin-right: 10px;
-                                "
-                            >
-                                3
-                            </div>
-                            <h5 class="mb-0">获取结果</h5>
-                        </div>
-                        <p class="text-muted">查看识别结果和置信度</p>
-                    </div>
+                    <p class="text-muted">选择植物叶片图像文件</p>
                 </div>
+                <div class="col-md-4 mb-3">
+                    <div
+                        class="d-flex align-items-center justify-content-center mb-2"
+                    >
+                        <div
+                            class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                            style="
+                                width: 40px;
+                                height: 40px;
+                                margin-right: 10px;
+                            "
+                        >
+                            2
+                        </div>
+                        <h5 class="mb-0">选择模型</h5>
+                    </div>
+                    <p class="text-muted">选择合适的识别模型</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div
+                        class="d-flex align-items-center justify-content-center mb-2"
+                    >
+                        <div
+                            class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                            style="
+                                width: 40px;
+                                height: 40px;
+                                margin-right: 10px;
+                            "
+                        >
+                            3
+                        </div>
+                        <h5 class="mb-0">获取结果</h5>
+                    </div>
+                    <p class="text-muted">查看识别结果和置信度</p>
+                </div>
+            </div>
+            <div class="mt-4">
                 <a
                     href="{{ url_for('predict_page') }}"
-                    class="btn btn-primary btn-lg mt-3"
+                    class="btn btn-primary btn-lg"
                 >
                     <i class="fas fa-play me-2"></i>立即开始
                 </a>
@@ -391,4 +382,5 @@ endblock %} {% block content %}
         </div>
     </div>
 </div>
+
 {% endblock %}
