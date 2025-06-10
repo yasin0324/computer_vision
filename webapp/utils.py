@@ -18,6 +18,7 @@ import torch.nn as nn
 from torchvision import transforms
 from PIL import Image
 import numpy as np
+import logging
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent
@@ -242,6 +243,15 @@ class TrainingManager:
     def __init__(self):
         self.training_processes = {}
         self.training_status = {}
+        
+        # 添加日志记录器
+        self.logger = logging.getLogger("TrainingManager")
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel(logging.INFO)
     
     def start_training(self, model_type: str, epochs: int = 50, 
                       learning_rate: float = 0.0005, batch_size: int = 32) -> str:
@@ -265,13 +275,202 @@ class TrainingManager:
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
         
-        # 模拟训练进程
-        self._start_mock_training(training_id, config_data)
+        try:
+            # 尝试启动实际训练进程
+            self._start_real_training(training_id, config_data)
+            
+            # 检查训练是否成功启动
+            if training_id in self.training_processes:
+                return training_id
+            
+            # 如果训练进程没有成功启动，尝试使用模拟训练
+            self._start_mock_training(training_id, config_data)
+            self.training_status[training_id]['message'] += " (使用模拟训练，实际训练脚本启动失败)"
+            
+        except Exception as e:
+            # 出现异常时，使用模拟训练
+            self.logger.error(f"实际训练启动失败，使用模拟训练: {str(e)}")
+            self._start_mock_training(training_id, config_data)
+            self.training_status[training_id]['message'] = f"使用模拟训练 (实际训练脚本启动失败: {str(e)})"
         
         return training_id
     
+    def _start_real_training(self, training_id: str, config_data: Dict[str, Any]):
+        """启动实际训练进程"""
+        model_type = config_data['model_type']
+        
+        # 根据模型类型选择对应的训练脚本
+        script_map = {
+            'baseline': 'train_baseline.py',
+            'senet': 'train_se_net.py',
+            'cbam': 'train_cbam.py'
+        }
+        
+        script_name = script_map.get(model_type, 'train_baseline.py')
+        script_path = Path(project_root) / "scripts" / script_name
+        
+        # 确保脚本存在
+        if not script_path.exists():
+            raise FileNotFoundError(f"训练脚本不存在: {script_path}")
+            
+        # 创建日志目录
+        log_dir = Path(project_root) / "webapp" / "logs"
+        log_dir.mkdir(exist_ok=True, parents=True)
+        log_file = log_dir / f"training_{training_id}.log"
+        
+        # 构建训练命令
+        cmd = [
+            sys.executable,  # 当前Python解释器路径
+            str(script_path),
+            f"--epochs={config_data['epochs']}",
+            f"--learning_rate={config_data['learning_rate']}",
+            f"--experiment_name={model_type}_{training_id}"
+        ]
+        
+        self.logger.info(f"启动训练: {' '.join(cmd)}")
+        
+        # 创建进度追踪文件
+        progress_file = Path(project_root) / "logs" / f"progress_{training_id}.json"
+        with open(progress_file, 'w') as f:
+            json.dump({
+                'status': 'starting',
+                'progress': 0,
+                'current_epoch': 0,
+                'total_epochs': config_data['epochs'],
+                'start_time': config_data['start_time']
+            }, f)
+        
+        # 初始化状态
+        self.training_status[training_id] = {
+            'status': 'starting',
+            'progress': 0,
+            'current_epoch': 0,
+            'total_epochs': config_data['epochs'],
+            'train_loss': None,
+            'val_loss': None,
+            'train_acc': None,
+            'val_acc': None,
+            'start_time': config_data['start_time'],
+            'message': '正在启动训练...',
+            'log_file': str(log_file)
+        }
+        
+        # 定义进程输出处理函数
+        def process_output(proc):
+            import re
+            
+            # 更新正则表达式，匹配实际的输出格式
+            epoch_pattern = re.compile(r'Epoch\s+(\d+)/(\d+)')
+            loss_acc_pattern = re.compile(r'Train Loss: ([\d\.]+), Train Acc: ([\d\.]+)% - Val Loss: ([\d\.]+), Val Acc: ([\d\.]+)%')
+            best_acc_pattern = re.compile(r'Best validation accuracy: ([\d\.]+)%')
+            
+            # 打开日志文件
+            with open(log_file, 'w', encoding='utf-8') as log_f:
+                log_f.write(f"训练开始时间: {datetime.now().isoformat()}\n")
+                log_f.write(f"训练命令: {' '.join(cmd)}\n\n")
+                
+                while True:
+                    if proc.poll() is not None:  # 进程已结束
+                        end_status = f"训练结束时间: {datetime.now().isoformat()}, 返回码: {proc.returncode}\n"
+                        log_f.write(end_status)
+                        
+                        if proc.returncode == 0:
+                            self.training_status[training_id]['status'] = 'completed'
+                            self.training_status[training_id]['progress'] = 100
+                            self.training_status[training_id]['message'] = '训练完成'
+                            self.training_status[training_id]['end_time'] = datetime.now().isoformat()
+                        else:
+                            self.training_status[training_id]['status'] = 'failed'
+                            self.training_status[training_id]['message'] = f'训练失败，返回码: {proc.returncode}'
+                            self.training_status[training_id]['end_time'] = datetime.now().isoformat()
+                        break
+                    
+                    line = proc.stdout.readline().decode('utf-8', errors='ignore').strip()
+                    if not line:
+                        continue
+                    
+                    # 将输出写入日志文件
+                    log_f.write(line + '\n')
+                    log_f.flush()
+                    
+                    # 解析训练进度
+                    epoch_match = epoch_pattern.search(line)
+                    if epoch_match:
+                        current_epoch = int(epoch_match.group(1))
+                        total_epochs = int(epoch_match.group(2))
+                        progress = (current_epoch / total_epochs) * 100
+                        
+                        self.training_status[training_id]['current_epoch'] = current_epoch
+                        self.training_status[training_id]['total_epochs'] = total_epochs
+                        self.training_status[training_id]['progress'] = progress
+                        self.training_status[training_id]['status'] = 'running'
+                        self.training_status[training_id]['message'] = f'训练进行中... Epoch {current_epoch}/{total_epochs}'
+                        
+                        # 更新进度文件
+                        with open(progress_file, 'w') as f:
+                            json.dump({
+                                'status': 'running',
+                                'progress': progress,
+                                'current_epoch': current_epoch,
+                                'total_epochs': total_epochs
+                            }, f)
+                    
+                    # 解析损失值和准确率
+                    loss_acc_match = loss_acc_pattern.search(line)
+                    if loss_acc_match:
+                        train_loss = float(loss_acc_match.group(1))
+                        train_acc = float(loss_acc_match.group(2))
+                        val_loss = float(loss_acc_match.group(3))
+                        val_acc = float(loss_acc_match.group(4))
+                        
+                        self.training_status[training_id]['train_loss'] = train_loss
+                        self.training_status[training_id]['val_loss'] = val_loss
+                        self.training_status[training_id]['train_acc'] = train_acc
+                        self.training_status[training_id]['val_acc'] = val_acc
+                    
+                    # 解析最佳准确率
+                    best_acc_match = best_acc_pattern.search(line)
+                    if best_acc_match:
+                        best_val_acc = float(best_acc_match.group(1))
+                        self.training_status[training_id]['best_val_acc'] = best_val_acc
+        
+        # 启动进程
+        try:
+            # 设置环境变量，解决Unicode编码问题
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'  # 设置Python的IO编码为UTF-8
+            
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=1,
+                universal_newlines=False,
+                env=env  # 使用修改后的环境变量
+            )
+            
+            self.training_processes[training_id] = process
+            
+            # 在后台线程中处理输出
+            thread = threading.Thread(target=process_output, args=(process,))
+            thread.daemon = True
+            thread.start()
+            
+            self.logger.info(f"训练进程已启动，ID: {training_id}")
+            return True
+            
+        except Exception as e:
+            error_msg = f"启动训练失败: {str(e)}"
+            self.logger.error(error_msg)
+            self.training_status[training_id] = {
+                'status': 'failed',
+                'message': error_msg,
+                'end_time': datetime.now().isoformat()
+            }
+            return False
+    
     def _start_mock_training(self, training_id: str, config_data: Dict[str, Any]):
-        """启动模拟训练进程"""
+        """启动模拟训练进程（保留以便在实际训练无法进行时作为备选）"""
         def mock_training():
             import time
             import random
@@ -320,10 +519,21 @@ class TrainingManager:
     
     def stop_training(self, training_id: str) -> bool:
         """停止训练"""
+        if training_id in self.training_processes:
+            try:
+                self.training_processes[training_id].terminate()
+                self.training_status[training_id]['status'] = 'stopped'
+                self.training_status[training_id]['message'] = '训练已停止'
+                return True
+            except Exception as e:
+                self.training_status[training_id]['message'] = f'停止训练失败: {str(e)}'
+                return False
+        
         if training_id in self.training_status:
             self.training_status[training_id]['status'] = 'stopped'
             self.training_status[training_id]['message'] = '训练已停止'
             return True
+            
         return False
 
 

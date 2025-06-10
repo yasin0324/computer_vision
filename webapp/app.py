@@ -191,6 +191,87 @@ def api_training_status(training_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/training_log/<training_id>')
+def api_training_log(training_id):
+    """获取训练日志"""
+    try:
+        status = training_manager.get_training_status(training_id)
+        if 'log_file' not in status:
+            return jsonify({'error': '训练日志不存在'}), 404
+            
+        log_file = status['log_file']
+        if not os.path.exists(log_file):
+            return jsonify({'error': '训练日志文件不存在'}), 404
+            
+        return send_file(log_file, mimetype='text/plain')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/training_log_content/<training_id>')
+def api_training_log_content(training_id):
+    """获取训练日志内容（支持增量获取）"""
+    try:
+        status = training_manager.get_training_status(training_id)
+        if 'log_file' not in status:
+            return jsonify({'error': '训练日志不存在'}), 404
+            
+        log_file = status['log_file']
+        if not os.path.exists(log_file):
+            return jsonify({'error': '训练日志文件不存在'}), 404
+        
+        # 获取偏移量参数
+        offset = request.args.get('offset', default=0, type=int)
+        
+        # 读取日志文件
+        with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+            # 如果偏移量为0，返回全部内容
+            if offset == 0:
+                content = f.read()
+                next_offset = len(content)
+            else:
+                # 如果偏移量大于0，先定位到偏移位置
+                f.seek(offset)
+                # 读取新增内容
+                content = f.read()
+                next_offset = offset + len(content)
+        
+        # 如果内容为空，返回空字符串
+        if not content:
+            return jsonify({
+                'content': '',
+                'next_offset': next_offset
+            })
+        
+        # 处理ANSI转义序列（终端颜色等）
+        # 这里简化处理，实际可能需要更复杂的ANSI到HTML的转换
+        import re
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        content = ansi_escape.sub('', content)
+        
+        # 返回内容和新的偏移量
+        return jsonify({
+            'content': content,
+            'next_offset': next_offset
+        })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/stop_training/<training_id>', methods=['POST'])
+def api_stop_training(training_id):
+    """停止训练"""
+    try:
+        result = training_manager.stop_training(training_id)
+        if result:
+            return jsonify({'message': '训练已停止'})
+        else:
+            return jsonify({'error': '停止训练失败'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/evaluate')
 def evaluate_page():
     """评估页面"""
