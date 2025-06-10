@@ -12,6 +12,7 @@ import json
 import time
 from typing import Dict, Any, Optional, Tuple, List
 from tqdm import tqdm
+import sys
 
 # 可选导入TensorBoard
 try:
@@ -114,7 +115,12 @@ class Trainer:
         accuracies = AverageMeter()
         
         # 进度条
-        pbar = tqdm(self.train_loader, desc=f'Epoch {self.current_epoch + 1} [Train]')
+        pbar = tqdm(
+            self.train_loader,
+            desc=f'Epoch {self.current_epoch + 1} [Train]',
+            file=sys.stdout,
+            ncols=100
+        )
         
         for batch_idx, (images, targets, _) in enumerate(pbar):
             images = images.to(self.device)
@@ -164,7 +170,12 @@ class Trainer:
         accuracies = AverageMeter()
         
         with torch.no_grad():
-            pbar = tqdm(self.val_loader, desc=f'Epoch {self.current_epoch + 1} [Val]')
+            pbar = tqdm(
+                self.val_loader,
+                desc=f'Epoch {self.current_epoch + 1} [Val]',
+                file=sys.stdout,
+                ncols=100
+            )
             
             for images, targets, _ in pbar:
                 images = images.to(self.device)
