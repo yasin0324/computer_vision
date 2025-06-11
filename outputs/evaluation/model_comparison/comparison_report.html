@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型性能比较报告</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 10px;
+        }
+        .summary-card {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid #2196F3;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        .comparison-table th {
+            background-color: #2196F3;
+            color: white;
+        }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .ranking-section {
+            background-color: #fff8e1;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #ff9800;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>模型性能比较报告</h1>
+        <p><strong>生成时间:</strong> 2025-06-11 14:44:31</p>
+        
+        <h2>比较摘要</h2>
+        
+        <div class="summary-card">
+            <h3>比较摘要</h3>
+            <p><strong>比较模型数量:</strong> 3</p>
+            <p><strong>参与比较的模型:</strong> baseline, senet, cbam</p>
+            <p><strong>比较时间:</strong> 2025-06-11T14:44:29.266037</p>
+        </div>
+        
+        
+        <h2>整体性能比较</h2>
+        <table class="comparison-table"><thead><tr><th>Model</th><th>Accuracy</th><th>Macro F1</th><th>Micro F1</th></tr></thead><tbody><tr><td>senet</td><td>0.9985</td><td>0.9986</td><td>0.9985</td></tr><tr><td>baseline</td><td>0.9942</td><td>0.9938</td><td>0.9942</td></tr><tr><td>cbam</td><td>0.9898</td><td>0.9892</td><td>0.9898</td></tr></tbody></table>
+        
+        <h2>性能排名</h2>
+        <div class="ranking-section"><h4>Accuracy</h4><ol><li>senet</li><li>baseline</li><li>cbam</li></ol><h4>Macro F1</h4><ol><li>senet</li><li>baseline</li><li>cbam</li></ol><h4>Micro F1</h4><ol><li>senet</li><li>baseline</li><li>cbam</li></ol><h4>Overall</h4><ol><li>senet</li><li>baseline</li><li>cbam</li></ol></div>
+        
+        <div class="footer">
+            <p>此报告由植物叶片病害识别系统自动生成</p>
+        </div>
+    </div>
+</body>
+</html>
+        

@@ -23,7 +23,6 @@ if __name__ == '__main__':
     print("=" * 60)
     print("🚀 启动Web应用...")
     print("📍 访问地址: http://localhost:5000")
-    print("📍 仪表板: http://localhost:5000/dashboard")
     print("📍 病害识别: http://localhost:5000/predict")
     print("=" * 60)
     
