@@ -105,13 +105,14 @@ def index():
 def predict_page():
     """预测页面"""
     # 获取可用模型列表
-    available_models = model_predictor.get_available_models()
+    available_models = file_manager.get_available_models()
     return render_template('predict.html', models=available_models)
 
 
 @app.route('/api/predict', methods=['POST'])
 def api_predict():
     """预测API"""
+    file_path = None  # 初始化file_path
     try:
         # 检查是否有文件上传
         if 'file' not in request.files:
@@ -134,15 +135,29 @@ def api_predict():
         file.save(file_path)
         
         # 进行预测
-        result = model_predictor.predict_image(file_path, model_type)
+        result, model = model_predictor.predict_image(file_path, model_type)
         
-        # 清理临时文件
-        os.remove(file_path)
+        # 生成Grad-CAM
+        grad_cam_url = None
+        if model and 'is_mock' not in result: # 确保不是模拟预测且模型已加载
+            try:
+                pred_class = result.get('predicted_class')
+                if pred_class:
+                    grad_cam_url = model_predictor.generate_gradcam(model, file_path, pred_class, model_type)
+            except Exception as e:
+                print(f"Grad-CAM generation failed: {e}")
+
+        # 将Grad-CAM URL添加到结果中
+        result['grad_cam_url'] = grad_cam_url
         
         return jsonify(result)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        # 清理临时文件
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
 
 
 @app.route('/train')

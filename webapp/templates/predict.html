@@ -84,13 +84,19 @@ endblock %} {% block content %}
                             id="modelType"
                             name="model_type"
                             class="form-select"
+                            required
                         >
-                            <option value="baseline">ResNet50 基线模型</option>
-                            <option value="senet">SE-Net 注意力模型</option>
-                            <option value="cbam">CBAM 双重注意力模型</option>
+                            <option value="" disabled selected>
+                                请选择一个训练好的模型
+                            </option>
+                            {% for model in models %}
+                            <option value="{{ model.type }}">
+                                {{ model.name }} ({{ model.type }})
+                            </option>
+                            {% endfor %}
                         </select>
                         <div class="form-text">
-                            不同模型可能有不同的识别精度和速度
+                            列表根据 `outputs/models` 目录动态生成
                         </div>
                     </div>
 
@@ -159,6 +165,27 @@ endblock %} {% block content %}
                     <div class="mb-4">
                         <h6 class="mb-3">各类别概率分布</h6>
                         <div id="probabilityBars"></div>
+                    </div>
+
+                    <!-- Grad-CAM 热力图 -->
+                    <div
+                        id="gradCamContainer"
+                        class="mb-4"
+                        style="display: none"
+                    >
+                        <h6 class="mb-3">模型注意力热力图 (Grad-CAM)</h6>
+                        <div class="text-center">
+                            <img
+                                id="gradCamImage"
+                                src=""
+                                alt="Grad-CAM 热力图"
+                                class="img-fluid rounded"
+                                style="max-height: 300px"
+                            />
+                            <p class="text-muted small mt-2">
+                                热力图展示了模型在做决策时主要关注的图像区域
+                            </p>
+                        </div>
                     </div>
 
                     <!-- 详细信息 -->
@@ -363,6 +390,8 @@ endblock %} {% block content %}
             imagePreview.style.display = "none";
             document.getElementById("predictionResult").style.display = "none";
             document.getElementById("noResult").style.display = "block";
+            document.getElementById("gradCamContainer").style.display = "none";
+            document.getElementById("gradCamImage").src = "";
 
             // 清除病害卡片高亮
             document.querySelectorAll(".disease-info").forEach((card) => {
@@ -386,9 +415,18 @@ endblock %} {% block content %}
                 document.getElementById("modelType").value
             );
 
+            // 重置 Grad-CAM
+            const gradCamContainer =
+                document.getElementById("gradCamContainer");
+            const gradCamImage = document.getElementById("gradCamImage");
+            gradCamContainer.style.display = "none";
+            gradCamImage.src = "";
+
             // 显示加载动画
-            document.getElementById("predictBtn").disabled = true;
-            document.getElementById("loadingSpinner").style.display = "block";
+            const predictBtn = document.getElementById("predictBtn");
+            const loadingSpinner = document.getElementById("loadingSpinner");
+            loadingSpinner.style.display = "flex";
+            predictBtn.disabled = true;
             document.getElementById("noResult").style.display = "none";
             document.getElementById("predictionResult").style.display = "none";
 
@@ -464,6 +502,12 @@ endblock %} {% block content %}
 
             // 显示结果
             document.getElementById("predictionResult").style.display = "block";
+
+            // 新增: 显示 Grad-CAM 热力图
+            if (result.grad_cam_url) {
+                gradCamImage.src = result.grad_cam_url;
+                gradCamContainer.style.display = "block";
+            }
 
             // 高亮对应的病害卡片
             highlightDiseaseCard(result.predicted_class);

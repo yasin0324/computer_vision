@@ -19,12 +19,19 @@ from torchvision import transforms
 from PIL import Image
 import numpy as np
 import logging
+import cv2
+import torch.nn.functional as F
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-# 默认配置
+# --- 正确导入模型创建函数 ---
+from src.models.baseline import create_resnet_baseline
+from src.models.attention_models import ResNetSE, ResNetCBAM
+from src.config.config import config
+
+# 默认配置 (保留作为后备)
 class DefaultConfig:
     TARGET_CLASSES = {
         0: 'bacterial_spot',
@@ -32,17 +39,65 @@ class DefaultConfig:
         2: 'septoria_leaf_spot',
         3: 'target_spot'
     }
+    INPUT_SIZE = 224
+    NUM_CLASSES = 4
 
-config = DefaultConfig()
+try:
+    # 尝试从主配置文件导入
+    from src.config.config import config
+except ImportError:
+    # 如果失败，使用这里的默认配置
+    config = DefaultConfig()
 
-# Mock模型创建函数
-def create_mock_model(num_classes=4):
-    """创建一个简单的mock模型用于演示"""
-    import torchvision.models as models
-    model = models.resnet18(pretrained=False)
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
-    return model
-
+class GradCAM:
+    """Grad-CAM可视化器"""
+    
+    def __init__(self, model, target_layer, device='cpu'):
+        self.model = model
+        self.device = device
+        self.model.to(device)
+        self.model.eval()
+        
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        
+        self._register_hooks()
+    
+    def _register_hooks(self):
+        """注册前向和反向钩子"""
+        
+        def forward_hook(module, input, output):
+            self.activations = output.detach()
+        
+        def backward_hook(module, grad_input, grad_output):
+            self.gradients = grad_output[0].detach()
+        
+        self.target_layer.register_forward_hook(forward_hook)
+        self.target_layer.register_backward_hook(backward_hook)
+    
+    def generate_cam(self, input_tensor, class_idx=None):
+        input_tensor = input_tensor.to(self.device)
+        input_tensor.requires_grad_()
+        
+        output = self.model(input_tensor)
+        
+        if class_idx is None:
+            class_idx = torch.argmax(output, dim=1).item()
+        
+        self.model.zero_grad()
+        class_score = output[0, class_idx]
+        class_score.backward(retain_graph=True)
+        
+        if self.gradients is not None:
+            weights = torch.mean(self.gradients, dim=[2, 3], keepdim=True)
+            cam = torch.sum(weights * self.activations, dim=1).squeeze(0)
+            cam = F.relu(cam)
+            cam = cam - cam.min()
+            cam = cam / cam.max() if cam.max() > 0 else cam
+            return cam.detach().cpu().numpy(), class_idx
+        else:
+            return np.zeros((7, 7)), class_idx
 
 class ModelPredictor:
     """模型预测器"""
@@ -51,10 +106,11 @@ class ModelPredictor:
         self.models = {}
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.class_names = list(config.TARGET_CLASSES.values())
+        logging.info(f"ModelPredictor initialized on device: {self.device}")
         
         # 图像预处理
         self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize((config.INPUT_SIZE, config.INPUT_SIZE)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], 
                                std=[0.229, 0.224, 0.225])
@@ -63,22 +119,42 @@ class ModelPredictor:
     def load_model(self, model_path: str, model_type: str = 'baseline') -> nn.Module:
         """加载模型"""
         if model_path in self.models:
+            logging.info(f"DEBUG: Using cached model for: {model_path}")
             return self.models[model_path]
         
-        # 创建模型
-        model = create_mock_model(num_classes=len(self.class_names))
-        
+        # --- 根据模型类型正确创建模型 ---
+        logging.info(f"DEBUG: Creating model architecture for type: '{model_type}'")
+        if model_type == 'baseline':
+            model = create_resnet_baseline(num_classes=config.NUM_CLASSES, pretrained=False)
+        elif model_type == 'senet':
+            model = ResNetSE(num_classes=config.NUM_CLASSES)
+        elif model_type == 'cbam':
+            model = ResNetCBAM(num_classes=config.NUM_CLASSES)
+        else:
+            logging.error(f"Unsupported model type: {model_type}. Falling back to baseline.")
+            model = create_resnet_baseline(num_classes=config.NUM_CLASSES, pretrained=False)
+
         # 加载权重（如果存在）
         if os.path.exists(model_path):
             try:
                 checkpoint = torch.load(model_path, map_location=self.device)
-                if 'model_state_dict' in checkpoint:
-                    model.load_state_dict(checkpoint['model_state_dict'])
+                state_dict = checkpoint.get('model_state_dict', checkpoint)
+
+                # --- 针对不同模型结构，使用正确的加载方式 ---
+                if model_type in ['senet', 'cbam']:
+                    # 注意力模型权重需要加载到内部的 .model 属性
+                    model.model.load_state_dict(state_dict)
+                    logging.info(f"DEBUG: Successfully loaded weights into 'model.model' for {model_type}.")
                 else:
-                    model.load_state_dict(checkpoint)
+                    # 基线模型直接加载
+                    model.load_state_dict(state_dict)
+                    logging.info("DEBUG: Successfully loaded weights into baseline model.")
+
             except Exception as e:
-                print(f"警告: 无法加载模型权重 {model_path}: {e}")
-        
+                logging.error(f"DEBUG: Failed to load model weights from {model_path}: {e}", exc_info=True)
+        else:
+            logging.warning(f"DEBUG: Model path does not exist: {model_path}. Using an untrained model.")
+
         model.to(self.device)
         model.eval()
         
@@ -89,12 +165,17 @@ class ModelPredictor:
     
     def predict_image(self, image_path: str, model_type: str = 'baseline') -> Dict[str, Any]:
         """预测单张图像"""
+        logging.info("--- [DEBUG] Starting Prediction ---")
+        logging.info(f"DEBUG: Attempting to predict for model_type: '{model_type}'")
         try:
             # 查找可用的模型文件
             model_path = self._find_model_file(model_type)
             if not model_path:
                 # 如果没有找到模型文件，返回模拟结果
+                logging.warning(f"DEBUG: No model file found for type '{model_type}'. Returning mock prediction.")
                 return self._mock_prediction(model_type)
+            
+            logging.info(f"DEBUG: Found model file to use: {model_path}")
             
             # 加载模型
             model = self.load_model(model_path, model_type)
@@ -112,6 +193,10 @@ class ModelPredictor:
                 # 获取所有类别的概率
                 all_probs = probabilities.cpu().numpy()[0]
                 
+            predicted_class = self.class_names[predicted.item()]
+            confidence_val = float(confidence.item())
+            logging.info(f"DEBUG: Prediction result: Class='{predicted_class}', Confidence={confidence_val:.4f}")
+                
             # 构建结果
             result = {
                 'predicted_class': self.class_names[predicted.item()],
@@ -124,50 +209,108 @@ class ModelPredictor:
                 'timestamp': datetime.now().isoformat()
             }
             
-            return result
+            logging.info("--- [DEBUG] Prediction Finished ---")
+            # 返回结果和模型对象，方便后续使用
+            return result, model
             
         except Exception as e:
+            logging.error(f"DEBUG: An error occurred during prediction: {e}", exc_info=True)
             return self._mock_prediction(model_type, error=str(e))
     
+    def generate_gradcam(self, model, image_path, pred_class_name, model_type: str):
+        """为单张图像生成Grad-CAM"""
+        try:
+            # --- 根据模型类型确定目标层 ---
+            target_layer = None
+            if model_type == 'baseline':
+                # 基线模型将ResNet层包装在 `backbone` 的 nn.Sequential 中
+                # layer4 是其中的第8个元素（索引为7）
+                if hasattr(model, 'backbone') and isinstance(model.backbone, nn.Sequential) and len(model.backbone) > 7:
+                    target_layer = model.backbone[7]
+                    logging.info("Found target layer for baseline model: model.backbone[7]")
+            elif model_type in ['senet', 'cbam']:
+                # 注意力模型的目标层在 model.layer4
+                if hasattr(model, 'model') and hasattr(model.model, 'layer4'):
+                    target_layer = model.model.layer4
+                    logging.info(f"Found target layer for {model_type} model: model.model.layer4")
+
+            if not target_layer:
+                logging.warning(f"Grad-CAM: Could not find target layer for model type '{model_type}'.")
+                return None
+
+            grad_cam = GradCAM(model, target_layer, self.device)
+            
+            # 图像预处理
+            img = Image.open(image_path).convert('RGB')
+            input_tensor = self.transform(img).unsqueeze(0)
+
+            # 生成CAM
+            class_idx = self.class_names.index(pred_class_name)
+            cam, _ = grad_cam.generate_cam(input_tensor, class_idx)
+            
+            # 可视化
+            img_resized = img.resize((224, 224))
+            img_array = np.array(img_resized)
+            
+            cam_resized = cv2.resize(cam, (224, 224))
+            heatmap = cv2.applyColorMap(np.uint8(255 * cam_resized), cv2.COLORMAP_JET)
+            heatmap_rgb = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+            
+            superimposed = heatmap_rgb * 0.5 + img_array * 0.5
+            superimposed = superimposed.astype(np.uint8)
+            
+            # 保存图像
+            gradcam_dir = Path(project_root) / 'webapp' / 'static' / 'gradcam_results'
+            gradcam_dir.mkdir(exist_ok=True)
+            
+            unique_filename = f"{uuid.uuid4()}.png"
+            save_path = gradcam_dir / unique_filename
+            
+            Image.fromarray(superimposed).save(save_path)
+            
+            # 返回Web可访问的路径
+            return f"/static/gradcam_results/{unique_filename}"
+
+        except Exception as e:
+            logging.error(f"Error generating Grad-CAM: {e}", exc_info=True)
+            return None
+    
     def _mock_prediction(self, model_type: str, error: str = None) -> Dict[str, Any]:
-        """返回模拟预测结果"""
-        import random
+        """返回一个固定的、明确的模拟预测结果，用于清晰地指示错误"""
         
-        # 生成随机概率
-        probs = [random.random() for _ in self.class_names]
-        total = sum(probs)
-        probs = [p/total for p in probs]
+        # 固定返回第一个类别，低置信度，以明确表示是模拟结果
+        predicted_class = self.class_names[0]
+        confidence = 0.1 
         
-        predicted_idx = probs.index(max(probs))
-        
+        all_probabilities = {name: 0.0 for name in self.class_names}
+        all_probabilities[predicted_class] = confidence
+
         result = {
-            'predicted_class': self.class_names[predicted_idx],
-            'confidence': max(probs),
-            'all_probabilities': {
-                self.class_names[i]: prob 
-                for i, prob in enumerate(probs)
-            },
+            'predicted_class': predicted_class,
+            'confidence': confidence,
+            'all_probabilities': all_probabilities,
             'model_type': model_type,
             'timestamp': datetime.now().isoformat(),
-            'is_mock': True
+            'is_mock': True,
+            'error': True # 明确标记这是一个错误/模拟结果
         }
         
         if error:
-            result['warning'] = f"使用模拟预测，原因: {error}"
+            result['warning'] = f"模型加载失败，返回模拟预测。原因: {error}"
         else:
-            result['warning'] = "未找到训练好的模型，使用模拟预测"
+            result['warning'] = "未找到或无法加载模型，返回模拟预测。"
             
-        return result
+        return result, None # Also return None for model
     
     def _find_model_file(self, model_type: str) -> Optional[str]:
         """查找模型文件"""
-        # 修改为从outputs/models目录查找模型
         models_dir = Path(project_root) / "outputs" / "models"
-        
+        logging.info(f"DEBUG: Searching for model type '{model_type}' in: {models_dir}")
+
         if not models_dir.exists():
+            logging.warning(f"DEBUG: Models directory not found: {models_dir}")
             return None
         
-        # 根据模型类型查找对应的目录
         type_patterns = {
             'baseline': ['baseline', 'resnet50_baseline'],
             'senet': ['se_net', 'senet', 'resnet50_se_net'],
@@ -175,27 +318,28 @@ class ModelPredictor:
         }
         
         patterns = type_patterns.get(model_type, [model_type])
+        logging.info(f"DEBUG: Using search patterns: {patterns}")
         
-        # 在每个可能的目录中查找模型
         for pattern in patterns:
             for model_dir in models_dir.iterdir():
                 if not model_dir.is_dir():
                     continue
-                    
+                
                 if pattern.lower() in model_dir.name.lower():
-                    # 优先查找best_checkpoint文件
+                    logging.info(f"DEBUG: Found matching directory for pattern '{pattern}': {model_dir.name}")
                     best_models = list(model_dir.glob("best_checkpoint_*.pth"))
                     if best_models:
-                        # 返回最新的best checkpoint
                         latest_model = max(best_models, key=lambda x: x.stat().st_mtime)
+                        logging.info(f"DEBUG: Found best checkpoint in directory: {latest_model}")
                         return str(latest_model)
                     
-                    # 如果没有best checkpoint，查找其他.pth文件
                     pth_files = list(model_dir.glob("*.pth"))
                     if pth_files:
                         latest_model = max(pth_files, key=lambda x: x.stat().st_mtime)
+                        logging.info(f"DEBUG: Found latest .pth file in directory: {latest_model}")
                         return str(latest_model)
         
+        logging.warning(f"DEBUG: No model file found for type '{model_type}' with patterns {patterns}")
         return None
     
     def get_available_models(self) -> List[Dict[str, str]]:
