@@ -21,13 +21,12 @@
 
 ```
 visual/
-├── .conda/            # Conda 环境配置
 ├── .git/              # Git 仓库
-├── configs/           # 配置文件目录 (模型、训练等配置)
+├── configs/           # 配置文件目录 (训练等配置)
 ├── data/              # 数据集目录
-├── logs/              # 日志文件
+├── logs/              # 统一的日志文件存储
 ├── outputs/           # 输出目录 (训练好的模型、结果等)
-├── scripts/           # 辅助脚本
+├── scripts/           # 辅助脚本 (已优化，去除冗余脚本)
 ├── src/               # 项目核心源码
 │   ├── data/          # 数据加载和预处理
 │   ├── models/        # 深度学习模型定义
@@ -38,13 +37,15 @@ visual/
 │   └── utils/         # 工具函数
 ├── tests/             # 测试代码
 ├── webapp/            # Flask Web 应用
-│   ├── static/        # 静态文件 (CSS, JS, Images)
 │   ├── templates/     # HTML 模板
+│   ├── uploads/       # 上传的图片存储
 │   ├── app.py         # Flask 应用主文件
 │   └── utils.py       # Web 应用工具函数
 ├── .gitignore         # Git 忽略文件
+├── model_config.json  # 模型配置文件
+├── 项目报告.md         # 项目报告
 ├── README.md          # 项目说明
-├── requirements.txt   # Python 依赖
+├── requirements.txt   # Python 依赖 (已整合所有依赖)
 └── run_webapp.py      # Web 应用启动脚本
 ```
 

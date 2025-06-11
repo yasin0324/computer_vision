@@ -14,6 +14,7 @@ sys.path.append(str(project_root))
 # 设置环境变量
 os.environ['FLASK_APP'] = 'webapp.app'
 os.environ['FLASK_ENV'] = 'development'
+os.environ['WEBAPP_LOGS_DIR'] = 'logs'  # 设置统一的日志目录
 
 if __name__ == '__main__':
     from webapp.app import app
