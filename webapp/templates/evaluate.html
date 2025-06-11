@@ -133,6 +133,34 @@ endblock %} {% block content %}
         </div>
     </div>
 </div>
+
+<div class="row mt-4">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">评估图表</h5>
+            </div>
+            <div class="card-body">
+                <div id="evaluationCharts" style="display: none">
+                    <div class="row">
+                        <div class="col-lg-6 mb-4">
+                            <h6>各类别性能指标 (F1 分数)</h6>
+                            <canvas id="classMetricsChart"></canvas>
+                        </div>
+                        <div class="col-lg-6 mb-4">
+                            <h6>混淆矩阵</h6>
+                            <canvas id="confusionMatrixChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div id="noCharts" class="text-center text-muted">
+                    <p>评估完成后将在此处显示图表</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} {% block extra_js %}
 <script>
     $(document).ready(function () {
@@ -163,6 +191,8 @@ endblock %} {% block content %}
             $("#evaluationLoading").show();
             $("#noEvaluation").hide();
             $("#evaluationResult").hide();
+            $("#evaluationCharts").hide();
+            $("#noCharts").show();
 
             $.ajax({
                 url: "/api/evaluate",
@@ -186,6 +216,9 @@ endblock %} {% block content %}
             });
         });
 
+        let classMetricsChart = null;
+        let confusionMatrixChart = null;
+
         function displayEvaluationResult(result) {
             $("#accuracy").text(
                 (result.results.accuracy * 100).toFixed(1) + "%"
@@ -200,6 +233,130 @@ endblock %} {% block content %}
             }
 
             $("#evaluationResult").show();
+
+            // 显示并渲染图表
+            if (
+                result.results.class_metrics &&
+                result.results.confusion_matrix
+            ) {
+                $("#evaluationCharts").show();
+                $("#noCharts").hide();
+                renderCharts(result.results);
+            }
+        }
+
+        function renderCharts(results) {
+            // 渲染类别性能图表
+            const classCtx = document
+                .getElementById("classMetricsChart")
+                .getContext("2d");
+            if (classMetricsChart) {
+                classMetricsChart.destroy();
+            }
+            classMetricsChart = new Chart(classCtx, {
+                type: "bar",
+                data: {
+                    labels: Object.keys(results.class_metrics),
+                    datasets: [
+                        {
+                            label: "F1 分数",
+                            data: Object.values(results.class_metrics).map(
+                                (m) => m.f1
+                            ),
+                            backgroundColor: "rgba(75, 192, 192, 0.6)",
+                            borderColor: "rgba(75, 192, 192, 1)",
+                            borderWidth: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1.0,
+                        },
+                    },
+                },
+            });
+
+            // 渲染混淆矩阵热力图（使用散点图模拟）
+            const confusionCtx = document
+                .getElementById("confusionMatrixChart")
+                .getContext("2d");
+            if (confusionMatrixChart) {
+                confusionMatrixChart.destroy();
+            }
+
+            const cmData = results.confusion_matrix;
+            const labels = results.class_names;
+            const chartData = [];
+            let maxVal = 0;
+            cmData.forEach((row, i) => {
+                row.forEach((val, j) => {
+                    chartData.push({ x: j, y: i, v: val });
+                    if (val > maxVal) maxVal = val;
+                });
+            });
+
+            confusionMatrixChart = new Chart(confusionCtx, {
+                type: "bubble",
+                data: {
+                    datasets: [
+                        {
+                            label: "混淆矩阵",
+                            data: chartData.map((d) => ({
+                                x: d.x,
+                                y: d.y,
+                                r: Math.max(5, (d.v / maxVal) * 25), // 半径大小
+                            })),
+                            backgroundColor: chartData.map(
+                                (d) =>
+                                    `rgba(255, 99, 132, ${
+                                        (d.v / maxVal) * 0.7 + 0.3
+                                    })`
+                            ),
+                            borderColor: "rgba(255, 99, 132, 1)",
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const index = context.dataIndex;
+                                    const dataPoint = chartData[index];
+                                    return `实际: ${
+                                        labels[dataPoint.y]
+                                    } -> 预测: ${labels[dataPoint.x]}: ${
+                                        dataPoint.v
+                                    }`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                callback: function (value, index, values) {
+                                    return labels[value];
+                                },
+                            },
+                            grid: { display: false },
+                        },
+                        y: {
+                            ticks: {
+                                callback: function (value, index, values) {
+                                    return labels[value];
+                                },
+                            },
+                            grid: { display: false },
+                        },
+                    },
+                },
+            });
         }
     });
 </script>

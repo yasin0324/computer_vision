@@ -282,131 +282,112 @@ def evaluate_page():
 
 @app.route('/api/evaluate', methods=['POST'])
 def api_evaluate():
-    """评估API - 简化版本"""
+    """评估API - 真实评估版本"""
     try:
         data = request.get_json()
         
         model_path = data.get('model_path')
         model_type = data.get('model_type', 'baseline')
-        save_attention = data.get('save_attention', False)
         
         if not model_path:
             return jsonify({'error': '请选择模型文件'}), 400
         
-        # 检查模型文件是否存在
         model_file = Path(model_path)
         if not model_file.exists():
             return jsonify({'error': f'模型文件不存在: {model_path}'}), 400
-        
-        # 生成模拟评估结果（基于模型类型）
-        if model_type == 'cbam':
-            accuracy = 0.9234
-            macro_f1 = 0.9156
-            precision = 0.9089
-            recall = 0.9267
-        elif model_type == 'senet':
-            accuracy = 0.8967
-            macro_f1 = 0.8834
-            precision = 0.8756
-            recall = 0.8945
-        else:  # baseline
-            accuracy = 0.8523
-            macro_f1 = 0.8401
-            precision = 0.8334
-            recall = 0.8567
-        
-        # 创建输出目录
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path(project_root) / "outputs" / "evaluation" / f"web_eval_{model_type}_{timestamp}"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 生成模拟评估结果
-        results = {
-            'model_name': model_file.stem,
-            'model_type': model_type,
-            'model_path': str(model_path),
-            'test_accuracy': accuracy,
-            'macro_f1': macro_f1,
-            'precision': precision,
-            'recall': recall,
-            'output_dir': str(output_dir),
-            'evaluation_date': datetime.now().isoformat(),
-            'class_metrics': {
-                'bacterial_spot': {'precision': 0.89, 'recall': 0.92, 'f1': 0.90},
-                'healthy': {'precision': 0.94, 'recall': 0.91, 'f1': 0.92},
-                'septoria_leaf_spot': {'precision': 0.87, 'recall': 0.85, 'f1': 0.86},
-                'target_spot': {'precision': 0.85, 'recall': 0.88, 'f1': 0.86}
-            },
-            'confusion_matrix': [
-                [392, 12, 15, 7],   # bacterial_spot
-                [8, 289, 12, 9],    # healthy  
-                [18, 15, 301, 20],  # septoria_leaf_spot
-                [9, 8, 17, 247]     # target_spot
-            ],
-            'status': '模拟评估结果'
-        }
-        
-        # 保存评估结果
-        results_file = output_dir / "evaluation_results.json"
-        with open(results_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-        
-        # 生成简单的HTML报告
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>模型评估报告 - {model_type}</title>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                .metric {{ margin: 10px 0; }}
-                .warning {{ color: orange; font-weight: bold; }}
-            </style>
-        </head>
-        <body>
-            <h1>模型评估报告</h1>
-            <div class="warning">注意：当前为演示模式，显示模拟评估结果</div>
-            <h2>基本信息</h2>
-            <div class="metric">模型名称: {results['model_name']}</div>
-            <div class="metric">模型类型: {results['model_type']}</div>
-            <div class="metric">评估时间: {results['evaluation_date']}</div>
             
-            <h2>性能指标</h2>
-            <div class="metric">准确率: {accuracy:.4f}</div>
-            <div class="metric">宏平均F1: {macro_f1:.4f}</div>
-            <div class="metric">精确率: {precision:.4f}</div>
-            <div class="metric">召回率: {recall:.4f}</div>
+        model_name = model_file.stem
+
+        try:
+            # 运行真实的模型评估
+            eval_result = run_model_evaluation(model_path, model_type, model_name)
             
-            <h2>各类别性能</h2>
-            <table border="1" style="border-collapse: collapse;">
-                <tr><th>类别</th><th>精确率</th><th>召回率</th><th>F1分数</th></tr>
-                <tr><td>bacterial_spot</td><td>0.89</td><td>0.92</td><td>0.90</td></tr>
-                <tr><td>healthy</td><td>0.94</td><td>0.91</td><td>0.92</td></tr>
-                <tr><td>septoria_leaf_spot</td><td>0.87</td><td>0.85</td><td>0.86</td></tr>
-                <tr><td>target_spot</td><td>0.85</td><td>0.88</td><td>0.86</td></tr>
-            </table>
-        </body>
-        </html>
-        """
-        
-        html_file = output_dir / f"{model_type}_report.html"
-        with open(html_file, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        return jsonify({
-            'message': '评估完成',
-            'results': {
-                'accuracy': results['test_accuracy'],
-                'macro_f1': results['macro_f1'],
-                'output_dir': results['output_dir'],
-                'report_url': f"/api/report/{html_file.name}"
-            },
-            'note': '当前为演示模式，显示模拟评估结果'
-        })
+            # 检查评估结果中是否有错误
+            if 'error' in eval_result:
+                 return jsonify({'error': f"评估失败: {eval_result['error']}"}), 500
+
+            # 创建输出目录
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = Path(project_root) / "outputs" / "evaluation" / f"web_eval_{model_type}_{timestamp}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 保存评估结果
+            results_file = output_dir / "evaluation_results.json"
+            with open(results_file, 'w', encoding='utf-8') as f:
+                json.dump(eval_result, f, indent=2, ensure_ascii=False)
+
+            # 生成简单的HTML报告
+            report_url = create_simple_html_report(eval_result, output_dir)
+
+            return jsonify({
+                'message': '评估完成',
+                'results': {
+                    'accuracy': eval_result.get('accuracy'),
+                    'macro_f1': eval_result.get('f1_score'),
+                    'output_dir': str(output_dir),
+                    'report_url': report_url,
+                    'class_metrics': eval_result.get('class_metrics'),
+                    'confusion_matrix': eval_result.get('confusion_matrix'),
+                    'class_names': eval_result.get('class_names')
+                },
+                'note': '当前为真实评估模式'
+            })
+
+        except Exception as e:
+            return jsonify({'error': f'模型评估执行失败: {e}'}), 500
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+def create_simple_html_report(results, output_dir):
+    """根据评估结果生成一个简单的HTML报告"""
+    model_name = results.get('model_name', 'N/A')
+    model_type = results.get('model_type', 'N/A')
+    
+    # 构建HTML内容
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>模型评估报告 - {model_type}</title>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .metric {{ margin: 10px 0; }}
+            .note {{ color: green; font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <h1>模型评估报告</h1>
+        <div class="note">注意：当前为真实评估结果</div>
+        <h2>基本信息</h2>
+        <div class="metric">模型名称: {model_name}</div>
+        <div class="metric">模型类型: {model_type}</div>
+        <div class="metric">评估时间: {results.get('evaluation_date', 'N/A')}</div>
+        
+        <h2>性能指标</h2>
+        <div class="metric">准确率: {results.get('accuracy', 0):.4f}</div>
+        <div class="metric">宏平均F1: {results.get('f1_score', 0):.4f}</div>
+        <div class="metric">精确率: {results.get('precision', 0):.4f}</div>
+        <div class="metric">召回率: {results.get('recall', 0):.4f}</div>
+    """
+    
+    # 添加类别指标
+    if 'class_metrics' in results and results['class_metrics']:
+        html_content += "<h2>各类别性能</h2><table border='1' style='border-collapse: collapse;'><tr><th>类别</th><th>精确率</th><th>召回率</th><th>F1分数</th></tr>"
+        for class_name, metrics in results['class_metrics'].items():
+            html_content += f"<tr><td>{class_name}</td><td>{metrics.get('precision', 0):.2f}</td><td>{metrics.get('recall', 0):.2f}</td><td>{metrics.get('f1', 0):.2f}</td></tr>"
+        html_content += "</table>"
+    
+    html_content += "</body></html>"
+    
+    # 保存HTML文件
+    html_file = output_dir / f"{model_type}_report.html"
+    with open(html_file, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+    
+    return f"/api/report/{html_file.name}"
 
 
 @app.route('/compare')

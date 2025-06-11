@@ -5,7 +5,7 @@ import json
 import torch
 from pathlib import Path
 from datetime import datetime
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import time
@@ -89,6 +89,19 @@ def evaluate_model(model_path, model_type, model_name):
                                      target_names=class_names, 
                                      output_dict=True)
         
+        # 计算混淆矩阵
+        cm = confusion_matrix(all_labels, all_preds)
+        
+        # 提取各类别指标
+        class_metrics = {
+            name: {
+                'precision': report[name]['precision'],
+                'recall': report[name]['recall'],
+                'f1': report[name]['f1-score']
+            }
+            for name in class_names
+        }
+        
         avg_inference_time = (total_time / len(test_loader.dataset)) * 1000
         file_size_mb = Path(model_path).stat().st_size / (1024*1024)
         
@@ -100,6 +113,9 @@ def evaluate_model(model_path, model_type, model_name):
             'f1_score': float(report['macro avg']['f1-score']),
             'precision': float(report['macro avg']['precision']),
             'recall': float(report['macro avg']['recall']),
+            'class_metrics': class_metrics,
+            'confusion_matrix': cm.tolist(),
+            'class_names': class_names,
             'file_size_mb': round(file_size_mb, 1),
             'inference_time_ms': round(avg_inference_time, 2),
             'evaluation_date': datetime.now().isoformat(),
